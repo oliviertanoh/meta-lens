@@ -105,11 +105,42 @@ describe('buildRecipeTree projectOnly (bsp-custom)', () => {
   });
 });
 
+describe('buildRecipeTree overlayed / images chips (bsp-custom)', () => {
+  let p: Project;
+  beforeAll(async () => {
+    p = await loadProject(fixture('bsp-custom'));
+  });
+  const pns = (t: ReturnType<typeof buildRecipeTree>) =>
+    t.groups.flatMap((g) => g.recipes.map((r) => r.pn));
+
+  it('overlayed keeps every candidate of an overlayed PN', () => {
+    expect(pns(buildRecipeTree(p.recipes, p.appends, { overlayed: true }))).toEqual([
+      'openssh',
+      'openssh',
+    ]);
+  });
+
+  it('images keeps image recipes', () => {
+    expect(pns(buildRecipeTree(p.recipes, p.appends, { images: true }))).toEqual([
+      'core-image-minimal',
+      'acme-image',
+    ]);
+  });
+
+  it('chips combine with AND', () => {
+    expect(pns(buildRecipeTree(p.recipes, p.appends, { images: true, hasAppends: true }))).toEqual(
+      [],
+    );
+  });
+});
+
 describe('isFilterActive', () => {
   it('ignores blank text', () => {
     expect(isFilterActive({})).toBe(false);
     expect(isFilterActive({ text: '  ' })).toBe(false);
     expect(isFilterActive({ text: 'a' })).toBe(true);
     expect(isFilterActive({ hasAppends: true })).toBe(true);
+    expect(isFilterActive({ overlayed: true })).toBe(true);
+    expect(isFilterActive({ images: true })).toBe(true);
   });
 });

@@ -7,6 +7,10 @@ export interface RecipeFilter {
   text?: string;
   /** Keep only recipes extended by at least one bbappend. */
   hasAppends?: boolean;
+  /** Keep only recipes whose PN is provided by several layers. */
+  overlayed?: boolean;
+  /** Keep only image recipes. */
+  images?: boolean;
   /**
    * Keep only recipes created by a project layer, or extended by a bbappend
    * from a project layer. Ignored when there is no project layer.
@@ -33,7 +37,7 @@ export interface RecipeTree {
 
 export function isFilterActive(f: RecipeFilter): boolean {
   // `projectOnly` is a scope, not a filter: clearing filters keeps it.
-  return !!f.hasAppends || !!f.text?.trim();
+  return !!f.hasAppends || !!f.overlayed || !!f.images || !!f.text?.trim();
 }
 
 /**
@@ -61,6 +65,8 @@ export function buildRecipeTree(
   let shown = 0;
   for (const r of recipes) {
     if (filter.hasAppends && r.appends.length === 0) continue;
+    if (filter.overlayed && !r.overlay) continue;
+    if (filter.images && !r.image) continue;
     if (projectOnly && !inProject(r)) continue;
     if (!textOk(r.pn, r.fileName)) continue;
     byCategory.set(r.category, [...(byCategory.get(r.category) ?? []), r]);
