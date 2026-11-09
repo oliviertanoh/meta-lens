@@ -6,8 +6,9 @@
 !dist/codicons/**
 !package.json
 !README.md
+!CHANGELOG.md
 !LICENSE
-!docs/**
+!docs/DESIGN.md
 !media/icon.png
 !media/activitybar.svg
 !media/logo-color.svg
