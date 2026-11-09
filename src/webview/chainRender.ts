@@ -19,8 +19,8 @@ const fileName = (entry: string) => entry.replace(/^file:\/\//, '').split(';')[0
 export function renderChain(c: OverlayChain, rel: Rel): string {
   const parts: string[] = [];
   parts.push(
-    `<header><span class="title">Overlay chain</span><span class="sep">·</span>` +
-      `<span class="pn">${esc(c.recipe.pn)}</span>` +
+    // The tab title already says "Overlay chain: <pn>".
+    `<header><h1>${esc(c.recipe.pn)}</h1>` +
       (c.recipe.pv ? `<span class="muted">${esc(c.recipe.pv)}</span>` : '') +
       `</header>`,
   );

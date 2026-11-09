@@ -31,7 +31,7 @@ beforeAll(async () => {
 describe('renderChain', () => {
   it('busybox: timeline, final values, orphan box', () => {
     const rows = text(renderChain(busybox, rel));
-    expect(rows[0]).toBe('Overlay chain · busybox 1.36.1');
+    expect(rows[0]).toBe('busybox 1.36.1');
     expect(rows).toContain('meta prio 5 base recipe');
     expect(rows).toContain('meta-acme-bsp prio 10 bbappend');
     expect(rows).toContain('overrides files/defconfig');
