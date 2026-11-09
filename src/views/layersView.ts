@@ -18,6 +18,7 @@ function tooltip(layer: Layer): vscode.MarkdownString {
   );
   row('Priority', layer.priority !== undefined ? String(layer.priority) : '—');
   row('Recipes', String(layer.recipeCount));
+  row('bbappends', String(layer.appendCount));
   row(
     'Depends on',
     layer.depends.length
