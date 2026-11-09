@@ -51,6 +51,58 @@ describe('buildRecipeTree (bsp-custom)', () => {
   });
 });
 
+describe('buildRecipeTree projectOnly (bsp-custom)', () => {
+  let p: Project;
+  let projectLayers: Set<string>;
+  beforeAll(async () => {
+    p = await loadProject(fixture('bsp-custom'));
+    projectLayers = new Set(p.layers.filter((l) => l.origin.kind === 'project').map((l) => l.path));
+  });
+
+  const names = (t: ReturnType<typeof buildRecipeTree>) =>
+    t.groups.flatMap((g) => g.recipes.map((r) => `${r.pn}@${r.layer.split('/').pop()}`));
+
+  it('keeps recipes created or extended by project layers', () => {
+    const t = buildRecipeTree(p.recipes, p.appends, { projectOnly: true }, projectLayers);
+    expect(names(t)).toEqual([
+      'acme-app@meta-acme', // created
+      'openssh@meta-acme', // created (overlays meta's openssh)
+      'base-files@meta', // extended by meta-acme-bsp
+      'busybox@meta', // extended by meta-acme-bsp and meta-acme
+      'htop@meta-oe', // extended by meta-acme-bsp (dynamic layer)
+    ]);
+    expect(t.shown).toBe(5);
+    expect(t.total).toBe(8);
+    expect(t.noProjectLayer).toBe(false);
+    expect(t.orphans.map((a) => a.fileName)).toEqual(['psplash_1.2.bbappend']);
+  });
+
+  it('acme-extra lives in an upstream layer (meta-oe dynamic layer): not shown', () => {
+    const t = buildRecipeTree(p.recipes, p.appends, { projectOnly: true }, projectLayers);
+    expect(names(t).some((n) => n.startsWith('acme-extra'))).toBe(false);
+  });
+
+  it('combines with the other filters', () => {
+    const t = buildRecipeTree(
+      p.recipes,
+      p.appends,
+      { projectOnly: true, hasAppends: true, text: 'busy' },
+      projectLayers,
+    );
+    expect(names(t)).toEqual(['busybox@meta']);
+  });
+
+  it('falls back to every recipe when there is no project layer', () => {
+    const t = buildRecipeTree(p.recipes, p.appends, { projectOnly: true }, new Set());
+    expect(t.shown).toBe(8);
+    expect(t.noProjectLayer).toBe(true);
+  });
+
+  it('is not counted as an active filter', () => {
+    expect(isFilterActive({ projectOnly: true })).toBe(false);
+  });
+});
+
 describe('isFilterActive', () => {
   it('ignores blank text', () => {
     expect(isFilterActive({})).toBe(false);
