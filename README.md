@@ -1,63 +1,76 @@
 # meta-lens
 
-**Understand any Yocto repo in minutes: layers, recipes, bbappends and overlay chains, right in VS Code.**
+A VS Code extension that shows how a Yocto / OpenEmbedded project is put together: which
+layers are loaded and in what order, which recipes they add, which bbappends modify them, and
+which images were built.
 
-meta-lens maps a Yocto / OpenEmbedded project as soon as you open it. It only reads files:
-no sourced `oe-init-build-env`, no bitbake run, no Python. It works right after a `git clone`.
+It reads the files of the repository and nothing else. There is no need to source
+`oe-init-build-env` or to run bitbake, so it works on a fresh clone.
 
-> Status: **0.1.0 pre-release**, for early testers. Feedback welcome in the
-> [issues](https://github.com/oliviertanoh/meta-lens/issues).
+Version 0.1.0 is a pre-release. Bug reports and odd repositories are welcome in the
+[issues](https://github.com/oliviertanoh/meta-lens/issues).
 
 <p>
-  <img src="docs/images/sidebar.png" alt="meta-lens sidebar" width="340">
-  <img src="docs/images/overlay-chain.png" alt="Overlay chain panel" width="420">
+  <img src="docs/images/sidebar.png" alt="meta-lens side panel" width="340">
+  <img src="docs/images/overlay-chain.png" alt="Overlay chain of busybox" width="420">
 </p>
 
-## Features
+## What it shows
 
-- **Project**: where the layers come from (`bblayers.conf` or kas file), `local.conf`,
-  Yocto release, MACHINE and DISTRO with a link to their definition.
-- **Layers**: BBLAYERS order, priority, recipe count and warnings. Click a layer to see its
-  recipes. Layers checked out but missing from BBLAYERS are listed separately.
-- **Recipes**: by default only the recipes your layers create or extend. Switch to all
-  recipes, or filter on recipes with bbappends or overlayed recipes (same name in several
-  layers, with the one BitBake uses).
-- **Overlay chain**: click a recipe with bbappends to see, next to the editor, the base
-  recipe then each bbappend in BitBake's order, the files they override through
-  `FILESEXTRAPATHS` and the final `SRC_URI` additions.
-- **Built images**: what is already in `tmp/deploy/images/<machine>/`, per machine.
-- **Live**: updates on its own when a `.bb`, `.bbappend`, `.conf` or kas file changes, and
-  after a build. Light: a few MB of memory, no background process.
+The side panel has four parts.
 
-## Install (pre-release)
+Project gives the file the layer list comes from (`bblayers.conf` or a kas file), the
+`local.conf`, the Yocto release taken from `LAYERSERIES_COMPAT_core`, and the MACHINE and
+DISTRO in use. A click on MACHINE or DISTRO opens its `.conf`.
 
-1. Download `meta-lens-0.1.0.vsix` from the
-   [releases page](https://github.com/oliviertanoh/meta-lens/releases).
-2. In VS Code: Extensions view, `...` menu, **Install from VSIX...**, or:
-   ```bash
-   code --install-extension meta-lens-0.1.0.vsix
-   ```
-3. Open a Yocto project folder. meta-lens opens in the Secondary Side Bar (right). Use the
-   logo in the editor title bar to bring it back.
+Layers lists the layers in BBLAYERS order with their recipe count and priority, and flags the
+ones with a problem: a path that does not exist, a `LAYERDEPENDS` that nothing provides, an
+orphan bbappend. A click on a layer filters the recipes on it. Layers present on disk but
+missing from BBLAYERS are listed apart, since BitBake ignores them.
 
-Requires VS Code 1.90 or later; the panel lives on the right from VS Code 1.106, on the
-left before that.
+Recipes shows by default only what your own layers add or modify. Switch to All for every
+recipe. Has appends and Overlayed narrow the list to recipes with bbappends, or to recipe
+names provided by several layers (the one BitBake uses is marked).
+
+Built images lists what is in `tmp/deploy/images/<machine>/`, per machine, with the size of
+each file.
+
+Clicking a recipe that has bbappends opens the overlay chain next to the editor: the recipe,
+then each bbappend in the order BitBake applies them, the files they replace through
+`FILESEXTRAPATHS`, what they add to `SRC_URI`, and the orphan bbappends of the layers
+involved.
+
+The panel updates when a `.bb`, `.bbappend`, `.conf` or kas file changes, and after a build.
+It holds a few MB of memory and starts no background process.
+
+## Install
+
+Download `meta-lens-0.1.0.vsix` from the
+[releases](https://github.com/oliviertanoh/meta-lens/releases), then in VS Code use
+Install from VSIX in the Extensions view, or:
+
+```bash
+code --install-extension meta-lens-0.1.0.vsix
+```
+
+Open a Yocto project folder. The panel opens in the Secondary Side Bar on the right (VS Code
+1.106 and later, otherwise on the left). The logo in the editor title bar brings it back.
 
 ## Settings
 
-| Setting | Default | |
+| Setting | Default | Effect |
 |---|---|---|
 | `metaLens.location` | `right` | `left` puts the panel in the Activity Bar |
-| `metaLens.projectLayers` | `[]` | Layer names that are yours, when the automatic guess is wrong |
+| `metaLens.projectLayers` | `[]` | Names of your layers, if the automatic guess is wrong |
 | `metaLens.excludeDirs` | `[]` | Extra folders to skip while scanning |
 | `metaLens.showEditorButton` | `true` | Logo button in the editor title bar |
 
-## Known limitations
+## Limits
 
-- kas files are detected but not parsed yet: layers are found by scanning the folder.
-- `BBMASK`, `PREFERRED_VERSION` and `PREFERRED_PROVIDER` are not read.
-- Inline Python (`${@...}`) is evaluated only for the common `os.path` idioms.
-- Tested on Linux so far.
+kas files are detected but not parsed yet, so for a kas project the layers come from a scan
+of the folder. `BBMASK`, `PREFERRED_VERSION` and `PREFERRED_PROVIDER` are not read. Inline
+Python (`${@...}`) is evaluated only for the usual `os.path` forms. It has been tested on
+Linux only.
 
 ## Development
 
