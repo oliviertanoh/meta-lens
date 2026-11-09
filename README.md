@@ -14,9 +14,6 @@ It shows your layers with their priorities and dependencies, every recipe with t
 - **Diagnostics**: orphan bbappends, overlayed recipes, `LAYERSERIES_COMPAT` mismatches
 - **Static first**: works right after `git clone`, on any OS
 
-## Mockup
-https://claude.ai/artifact/4pk1v5wm3GEPo2eCeKXKnw
-
 ## Development
 ```bash
 npm install
