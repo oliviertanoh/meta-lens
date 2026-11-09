@@ -1,7 +1,14 @@
 // HTML rendering of the sidebar. Pure string functions (no DOM), unit-tested.
 
 import type { BbAppend, Recipe } from '../core/model';
-import { buildRecipeTree, type RecipeFilter, type RecipeTree } from '../core/recipeTree';
+import {
+  buildRecipeTree,
+  scopeOf,
+  type RecipeFilter,
+  type RecipeKind,
+  type RecipeScope,
+  type RecipeTree,
+} from '../core/recipeTree';
 import type { LayerVM, Link, NoteVM, ProjectRowVM, SidebarModel } from '../core/sidebarModel';
 
 export interface UiState {
@@ -10,7 +17,7 @@ export interface UiState {
   open: Record<string, boolean>;
 }
 
-export const DEFAULT_STATE: UiState = { filter: { projectOnly: true }, open: {} };
+export const DEFAULT_STATE: UiState = { filter: { scope: 'project' }, open: {} };
 
 /** Categories start expanded when the list is short or a text filter is active. */
 export const AUTO_EXPAND_LIMIT = 60;
@@ -107,18 +114,31 @@ export function renderLayers(m: SidebarModel): string {
 // ---------------------------------------------------------------------------
 // RECIPES
 
-export const CHIPS: { key: keyof RecipeFilter; label: string; title: string }[] = [
-  { key: 'projectOnly', label: 'Project', title: 'Recipes created or extended by your layers' },
-  { key: 'hasAppends', label: 'Has appends', title: 'Recipes extended by at least one bbappend' },
-  { key: 'overlayed', label: 'Overlayed', title: 'Same recipe name provided by several layers' },
-  { key: 'images', label: 'Images', title: 'Image recipes' },
+export const KINDS: { kind: RecipeKind; label: string; title: string }[] = [
+  { kind: 'appends', label: 'Has appends', title: 'Recipes extended by at least one bbappend' },
+  { kind: 'overlayed', label: 'Overlayed', title: 'Same recipe name provided by several layers' },
 ];
 
-export function renderChips(filter: RecipeFilter): string {
-  return CHIPS.map(
-    (c) =>
-      `<button class="chip${filter[c.key] ? ' active' : ''}" data-chip="${c.key}" aria-pressed="${!!filter[c.key]}" title="${esc(c.title)}">${esc(c.label)}</button>`,
+/** Project | All selector, then the kind chips (at most one active), then the layer chip. */
+export function renderChips(filter: RecipeFilter, layerNames: Record<string, string> = {}): string {
+  const scope = scopeOf(filter);
+  const seg = (s: RecipeScope, label: string, title: string) => {
+    const on = !filter.layer && scope === s;
+    return `<button class="seg${on ? ' active' : ''}" data-scope="${s}" aria-pressed="${on}" title="${esc(title)}">${label}</button>`;
+  };
+  const kinds = KINDS.map(
+    (k) =>
+      `<button class="chip${filter.kind === k.kind ? ' active' : ''}" data-kind="${k.kind}" aria-pressed="${filter.kind === k.kind}" title="${esc(k.title)}">${esc(k.label)}</button>`,
   ).join('');
+  const layer = filter.layer
+    ? `<button class="chip active layer-chip" data-clear-layer="1" title="Recipes of this layer. Click to go back.">${icon('layers')}${esc(layerNames[filter.layer] ?? filter.layer)}${icon('close')}</button>`
+    : '';
+  return (
+    `<span class="segmented" role="group" aria-label="Scope">` +
+    seg('project', 'Project', 'Recipes created or extended by your layers') +
+    seg('all', 'All', 'Every recipe of every loaded layer') +
+    `</span>${kinds}${layer}`
+  );
 }
 
 function recipeRow(r: Recipe, m: SidebarModel, state: UiState): string {

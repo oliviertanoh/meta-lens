@@ -16,7 +16,7 @@ function nonce(): string {
 export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.Disposable {
   private view: vscode.WebviewView | undefined;
   private model: SidebarModel | undefined;
-  private filter: RecipeFilter = { projectOnly: true };
+  private filter: RecipeFilter = { scope: 'project' };
   private readyWaiters: (() => void)[] = [];
   private readonly disposables: vscode.Disposable[] = [];
   private readonly filterEmitter = new vscode.EventEmitter<RecipeFilter>();

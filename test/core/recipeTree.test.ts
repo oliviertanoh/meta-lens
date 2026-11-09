@@ -1,20 +1,30 @@
 import { beforeAll, describe, expect, it } from 'vitest';
 import type { Project } from '../../src/core/model';
 import { loadProject } from '../../src/core/project';
-import { buildRecipeTree, isFilterActive } from '../../src/core/recipeTree';
+import { buildRecipeTree, scopeOf } from '../../src/core/recipeTree';
 import { fixture } from './helpers';
 
-describe('buildRecipeTree (bsp-custom)', () => {
-  let p: Project;
-  beforeAll(async () => {
-    p = await loadProject(fixture('bsp-custom'));
+let p: Project;
+let projectLayers: Set<string>;
+beforeAll(async () => {
+  p = await loadProject(fixture('bsp-custom'));
+  projectLayers = new Set(p.layers.filter((l) => l.origin.kind === 'project').map((l) => l.path));
+});
+
+const shape = (t: ReturnType<typeof buildRecipeTree>) =>
+  t.groups.map((g) => [g.category, g.recipes.map((r) => r.pn)]);
+const pns = (t: ReturnType<typeof buildRecipeTree>) =>
+  t.groups.flatMap((g) => g.recipes.map((r) => `${r.pn}@${r.layer.split('/').pop()}`));
+const tree = (filter: Parameters<typeof buildRecipeTree>[2], layers = projectLayers) =>
+  buildRecipeTree(p.recipes, p.appends, filter, layers);
+
+describe('scope and kind (bsp-custom)', () => {
+  it('defaults to the project scope', () => {
+    expect(scopeOf({})).toBe('project');
   });
 
-  const shape = (t: ReturnType<typeof buildRecipeTree>) =>
-    t.groups.map((g) => [g.category, g.recipes.map((r) => r.pn)]);
-
-  it('groups every recipe by category, sorted', () => {
-    const t = buildRecipeTree(p.recipes, p.appends);
+  it('all: every recipe grouped by category', () => {
+    const t = tree({ scope: 'all' });
     expect(shape(t)).toEqual([
       ['recipes-acme', ['acme-app', 'acme-extra']],
       ['recipes-connectivity', ['openssh', 'openssh']],
@@ -23,124 +33,78 @@ describe('buildRecipeTree (bsp-custom)', () => {
       ['recipes-images', ['acme-image']],
       ['recipes-support', ['htop']],
     ]);
-    expect(t.total).toBe(10);
-    expect(t.shown).toBe(10);
+    expect([t.shown, t.total]).toEqual([10, 10]);
     expect(t.orphans.map((a) => a.fileName)).toEqual(['psplash_1.2.bbappend']);
   });
 
-  it('"Has appends" keeps only extended recipes and drops empty groups', () => {
-    const t = buildRecipeTree(p.recipes, p.appends, { hasAppends: true });
-    expect(shape(t)).toEqual([
-      ['recipes-core', ['base-files', 'busybox']],
-      ['recipes-support', ['htop']],
+  it('project: created or extended by project layers', () => {
+    expect(pns(tree({}))).toEqual([
+      'acme-app@meta-acme',
+      'openssh@meta-acme',
+      'base-files@meta',
+      'busybox@meta',
+      'acme-image@meta-acme',
+      'htop@meta-oe',
     ]);
-    expect(t.shown).toBe(3);
-    expect(t.orphans).toHaveLength(1); // orphans stay visible: they are always relevant
   });
 
-  it('text filter is case-insensitive and also filters orphans', () => {
-    const t = buildRecipeTree(p.recipes, p.appends, { text: '  BUSY ' });
-    expect(shape(t)).toEqual([['recipes-core', ['busybox']]]);
-    expect(t.orphans).toEqual([]);
-    expect(buildRecipeTree(p.recipes, p.appends, { text: 'splash' }).orphans).toHaveLength(1);
-  });
-
-  it('combines both filters', () => {
-    const t = buildRecipeTree(p.recipes, p.appends, { text: 'ssh', hasAppends: true });
-    expect(t.groups).toEqual([]);
-    expect(t.shown).toBe(0);
-  });
-});
-
-describe('buildRecipeTree projectOnly (bsp-custom)', () => {
-  let p: Project;
-  let projectLayers: Set<string>;
-  beforeAll(async () => {
-    p = await loadProject(fixture('bsp-custom'));
-    projectLayers = new Set(p.layers.filter((l) => l.origin.kind === 'project').map((l) => l.path));
-  });
-
-  const names = (t: ReturnType<typeof buildRecipeTree>) =>
-    t.groups.flatMap((g) => g.recipes.map((r) => `${r.pn}@${r.layer.split('/').pop()}`));
-
-  it('keeps recipes created or extended by project layers', () => {
-    const t = buildRecipeTree(p.recipes, p.appends, { projectOnly: true }, projectLayers);
-    expect(names(t)).toEqual([
-      'acme-app@meta-acme', // created
-      'openssh@meta-acme', // created (overlays meta's openssh)
-      'base-files@meta', // extended by meta-acme-bsp
-      'busybox@meta', // extended by meta-acme-bsp and meta-acme
-      'acme-image@meta-acme', // created
-      'htop@meta-oe', // extended by meta-acme-bsp (dynamic layer)
-    ]);
-    expect(t.shown).toBe(6);
-    expect(t.total).toBe(10);
-    expect(t.noProjectLayer).toBe(false);
-    expect(t.orphans.map((a) => a.fileName)).toEqual(['psplash_1.2.bbappend']);
-  });
-
-  it('acme-extra lives in an upstream layer (meta-oe dynamic layer): not shown', () => {
-    const t = buildRecipeTree(p.recipes, p.appends, { projectOnly: true }, projectLayers);
-    expect(names(t).some((n) => n.startsWith('acme-extra'))).toBe(false);
-  });
-
-  it('combines with the other filters', () => {
-    const t = buildRecipeTree(
-      p.recipes,
-      p.appends,
-      { projectOnly: true, hasAppends: true, text: 'busy' },
-      projectLayers,
-    );
-    expect(names(t)).toEqual(['busybox@meta']);
-  });
-
-  it('falls back to every recipe when there is no project layer', () => {
-    const t = buildRecipeTree(p.recipes, p.appends, { projectOnly: true }, new Set());
+  it('project without project layer falls back to everything', () => {
+    const t = tree({}, new Set());
     expect(t.shown).toBe(10);
     expect(t.noProjectLayer).toBe(true);
   });
 
-  it('is not counted as an active filter', () => {
-    expect(isFilterActive({ projectOnly: true })).toBe(false);
-  });
-});
-
-describe('buildRecipeTree overlayed / images chips (bsp-custom)', () => {
-  let p: Project;
-  beforeAll(async () => {
-    p = await loadProject(fixture('bsp-custom'));
-  });
-  const pns = (t: ReturnType<typeof buildRecipeTree>) =>
-    t.groups.flatMap((g) => g.recipes.map((r) => r.pn));
-
-  it('overlayed keeps every candidate of an overlayed PN', () => {
-    expect(pns(buildRecipeTree(p.recipes, p.appends, { overlayed: true }))).toEqual([
-      'openssh',
-      'openssh',
+  it('kind combines with the scope: "my overlays"', () => {
+    expect(pns(tree({ kind: 'overlayed' }))).toEqual(['openssh@meta-acme']);
+    expect(pns(tree({ scope: 'all', kind: 'overlayed' }))).toEqual([
+      'openssh@meta-acme',
+      'openssh@meta',
+    ]);
+    expect(pns(tree({ kind: 'appends' }))).toEqual([
+      'base-files@meta',
+      'busybox@meta',
+      'htop@meta-oe',
     ]);
   });
 
-  it('images keeps image recipes', () => {
-    expect(pns(buildRecipeTree(p.recipes, p.appends, { images: true }))).toEqual([
-      'core-image-minimal',
-      'acme-image',
-    ]);
-  });
-
-  it('chips combine with AND', () => {
-    expect(pns(buildRecipeTree(p.recipes, p.appends, { images: true, hasAppends: true }))).toEqual(
-      [],
-    );
+  it('no orphans in the overlayed view', () => {
+    expect(tree({ kind: 'appends' }).orphans).toHaveLength(1);
+    expect(tree({ kind: 'overlayed' }).orphans).toHaveLength(0);
   });
 });
 
-describe('isFilterActive', () => {
-  it('ignores blank text', () => {
-    expect(isFilterActive({})).toBe(false);
-    expect(isFilterActive({ text: '  ' })).toBe(false);
-    expect(isFilterActive({ text: 'a' })).toBe(true);
-    expect(isFilterActive({ hasAppends: true })).toBe(true);
-    expect(isFilterActive({ overlayed: true })).toBe(true);
-    expect(isFilterActive({ images: true })).toBe(true);
+describe('text filter', () => {
+  it('is case-insensitive and also filters orphans', () => {
+    const t = tree({ scope: 'all', text: '  BUSY ' });
+    expect(shape(t)).toEqual([['recipes-core', ['busybox']]]);
+    expect(t.orphans).toEqual([]);
+    expect(tree({ scope: 'all', text: 'splash' }).orphans).toHaveLength(1);
+  });
+});
+
+describe('layer filter (click on a layer)', () => {
+  const layer = (name: string) => p.layers.find((l) => l.name === name)!.path;
+
+  it('meta-acme-bsp: the recipes it extends (it creates none)', () => {
+    expect(pns(tree({ layer: layer('meta-acme-bsp') }))).toEqual([
+      'base-files@meta',
+      'busybox@meta',
+      'htop@meta-oe',
+    ]);
+  });
+
+  it('meta-acme: its recipes, what it extends, and its orphan', () => {
+    const t = tree({ layer: layer('meta-acme') });
+    expect(pns(t)).toEqual([
+      'acme-app@meta-acme',
+      'openssh@meta-acme',
+      'busybox@meta',
+      'acme-image@meta-acme',
+    ]);
+    expect(t.orphans.map((a) => a.fileName)).toEqual(['psplash_1.2.bbappend']);
+  });
+
+  it('an upstream layer works too', () => {
+    expect(tree({ layer: layer('meta') }).shown).toBe(4);
   });
 });

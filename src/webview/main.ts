@@ -1,6 +1,6 @@
 // Webview side of the sidebar: receives the model, renders, handles clicks and keys.
 
-import type { RecipeFilter } from '../core/recipeTree';
+import type { RecipeFilter, RecipeKind, RecipeScope } from '../core/recipeTree';
 import type { SidebarModel } from '../core/sidebarModel';
 import {
   DEFAULT_STATE,
@@ -60,7 +60,7 @@ function renderSections(): void {
   sec('sec-recipes', 'Recipes', recipesCount(tree));
   $('project').innerHTML = renderProject(model);
   $('layers').innerHTML = renderLayers(model);
-  $('chips').innerHTML = renderChips(state.filter);
+  $('chips').innerHTML = renderChips(state.filter, model.layerNames);
   $('recipes').innerHTML = renderRecipeList(model, state, tree);
 }
 
@@ -93,10 +93,16 @@ function setFilter(f: Partial<RecipeFilter>): void {
 
 document.addEventListener('click', (e) => {
   const target = e.target as HTMLElement;
-  const chip = target.closest<HTMLElement>('[data-chip]');
+  const chip = target.closest<HTMLElement>('[data-scope], [data-kind], [data-clear-layer]');
   if (chip) {
-    const k = chip.dataset.chip as keyof RecipeFilter;
-    setFilter({ [k]: !state.filter[k] });
+    if (chip.dataset.scope) {
+      setFilter({ scope: chip.dataset.scope as RecipeScope, layer: undefined });
+    } else if (chip.dataset.kind) {
+      const k = chip.dataset.kind as RecipeKind;
+      setFilter({ kind: state.filter.kind === k ? undefined : k });
+    } else {
+      setFilter({ layer: undefined });
+    }
     return;
   }
   const el = target.closest<HTMLElement>('[data-toggle], [data-file]');

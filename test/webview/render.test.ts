@@ -78,15 +78,25 @@ describe('renderLayers', () => {
 });
 
 describe('renderChips', () => {
-  it('marks active chips', () => {
-    const html = renderChips({ projectOnly: true, images: true });
-    expect(html.match(/class="chip active"/g)).toHaveLength(2);
+  it('Project | All selector and kind chips', () => {
+    const html = renderChips({ scope: 'project', kind: 'overlayed' });
+    expect(html.match(/class="seg active"/g)).toHaveLength(1);
+    expect(html).toContain('class="seg active" data-scope="project"');
+    expect(html).toContain('class="chip active" data-kind="overlayed"');
     expect(text(html.replace(/<button/g, '<div'))).toEqual([
       'Project',
+      'All',
       'Has appends',
       'Overlayed',
-      'Images',
     ]);
+  });
+
+  it('a selected layer shows a removable chip and no active scope', () => {
+    const layer = m.layers[0]!.path;
+    const html = renderChips({ scope: 'project', layer }, m.layerNames);
+    expect(html).not.toContain('seg active');
+    expect(html).toContain('data-clear-layer');
+    expect(text(html.replace(/<button/g, '<div')).at(-1)).toBe('meta');
   });
 });
 
@@ -128,7 +138,7 @@ describe('renderRecipeList', () => {
   });
 
   it('the overlayed recipe that loses is dimmed', () => {
-    const all: UiState = { ...DEFAULT_STATE, filter: { overlayed: true } };
+    const all: UiState = { ...DEFAULT_STATE, filter: { scope: 'all', kind: 'overlayed' } };
     const html = renderRecipeList(m, all);
     expect(html.match(/recipe clickable shadowed/g)).toHaveLength(1);
     expect(html).toContain('Overlayed: BitBake uses the one from meta-acme');
@@ -141,13 +151,17 @@ describe('renderRecipeList', () => {
 
   it('count label', () => {
     expect(recipesCount(recipeTreeOf(m, DEFAULT_STATE))).toBe('6 / 10');
-    expect(recipesCount(recipeTreeOf(m, { ...DEFAULT_STATE, filter: {} }))).toBe('10');
+    expect(recipesCount(recipeTreeOf(m, { ...DEFAULT_STATE, filter: { scope: 'all' } }))).toBe(
+      '10',
+    );
   });
 
   it('escapes file names', () => {
     const evil = structuredClone(m);
     evil.recipes[0]!.pn = '<img src=x onerror=alert(1)>';
-    expect(renderRecipeList(evil, { ...DEFAULT_STATE, filter: {} })).not.toContain('<img');
+    expect(renderRecipeList(evil, { ...DEFAULT_STATE, filter: { scope: 'all' } })).not.toContain(
+      '<img',
+    );
   });
 });
 

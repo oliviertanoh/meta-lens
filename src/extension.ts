@@ -100,22 +100,19 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     context.subscriptions.push(watcher);
   }
 
-  const setProjectOnly = (on: boolean) =>
-    vscode.commands.executeCommand('setContext', 'metaLens.projectOnly', on);
-  void setProjectOnly(true);
-  sidebar.onDidChangeFilter((f) => void setProjectOnly(!!f.projectOnly));
-
   context.subscriptions.push(
     vscode.commands.registerCommand('meta-lens.refresh', () => refresh()),
     vscode.commands.registerCommand('meta-lens.filterRecipes', () => sidebar.focusFilter()),
     vscode.commands.registerCommand('meta-lens.filterAppends', () =>
-      sidebar.setFilter({ hasAppends: !sidebar.getFilter().hasAppends }),
+      sidebar.setFilter({
+        kind: sidebar.getFilter().kind === 'appends' ? undefined : 'appends',
+      }),
     ),
     vscode.commands.registerCommand('meta-lens.showAllRecipes', () =>
-      sidebar.setFilter({ projectOnly: false }),
+      sidebar.setFilter({ scope: 'all', layer: undefined }),
     ),
     vscode.commands.registerCommand('meta-lens.showProjectRecipes', () =>
-      sidebar.setFilter({ projectOnly: true }),
+      sidebar.setFilter({ scope: 'project', layer: undefined }),
     ),
     vscode.workspace.onDidChangeWorkspaceFolders(scheduleRefresh),
     vscode.workspace.onDidChangeConfiguration((e) => {

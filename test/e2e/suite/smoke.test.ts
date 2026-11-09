@@ -74,17 +74,17 @@ suite('meta-lens smoke test (bsp-custom)', () => {
       new Promise((_, reject) => setTimeout(() => reject(new Error('webview not ready')), 15_000)),
     ]);
     // The webview reports its initial filter: project recipes only.
-    await until(() => api.getRecipeFilter().projectOnly === true, 'initial filter');
+    await until(() => (api.getRecipeFilter().scope ?? 'project') === 'project', 'initial filter');
 
     // Command → webview → back to the extension.
     await vscode.commands.executeCommand('meta-lens.filterAppends');
-    await until(() => api.getRecipeFilter().hasAppends === true, 'hasAppends on');
+    await until(() => api.getRecipeFilter().kind === 'appends', 'hasAppends on');
     await vscode.commands.executeCommand('meta-lens.filterAppends');
-    await until(() => api.getRecipeFilter().hasAppends === false, 'hasAppends off');
+    await until(() => api.getRecipeFilter().kind === undefined, 'hasAppends off');
 
     await vscode.commands.executeCommand('meta-lens.showAllRecipes');
-    await until(() => api.getRecipeFilter().projectOnly === false, 'show all');
+    await until(() => api.getRecipeFilter().scope === 'all', 'show all');
     await vscode.commands.executeCommand('meta-lens.showProjectRecipes');
-    await until(() => api.getRecipeFilter().projectOnly === true, 'project only');
+    await until(() => api.getRecipeFilter().scope === 'project', 'project only');
   });
 });
