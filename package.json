@@ -60,7 +60,7 @@
       },
       {
         "view": "metaLens.recipes",
-        "contents": "The recipe browser is coming soon."
+        "contents": "No recipe found."
       },
       {
         "view": "metaLens.layers",

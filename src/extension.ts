@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import type { Diagnostic, Project } from './core/model';
 import { loadProject } from './core/project';
 import { LayersViewProvider } from './views/layersView';
+import { RecipesViewProvider } from './views/recipesView';
 
 /** Public API returned by activate(), used by integration tests. */
 export interface MetaLensApi {
@@ -19,7 +20,16 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     treeDataProvider: layersProvider,
     showCollapseAll: false,
   });
-  context.subscriptions.push(output, layersProvider, layersView);
+  const recipesProvider = new RecipesViewProvider();
+  const recipesView = vscode.window.createTreeView('metaLens.recipes', {
+    treeDataProvider: recipesProvider,
+    showCollapseAll: true,
+  });
+  recipesProvider.onDidChangeCounts(({ shown, total }) => {
+    recipesView.description =
+      total === 0 ? undefined : shown === total ? `${total}` : `${shown} / ${total}`;
+  });
+  context.subscriptions.push(output, layersProvider, layersView, recipesProvider, recipesView);
 
   let projects: Project[] = [];
   let generation = 0;
@@ -58,9 +68,14 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     const layers = projects.flatMap((p) => p.layers);
     layersProvider.setLayers(layers);
     layersView.description = layers.length ? String(layers.length) : undefined;
+    recipesProvider.setData(
+      projects.flatMap((p) => p.recipes),
+      projects.flatMap((p) => p.appends),
+      layers,
+    );
 
     output.info(
-      `Scanned ${projects.length} folder(s) in ${Date.now() - started} ms: ${layers.length} layer(s).`,
+      `Scanned ${projects.length} folder(s) in ${Date.now() - started} ms: ${layers.length} layer(s), ${projects.reduce((n, p) => n + p.recipes.length, 0)} recipe(s), ${projects.reduce((n, p) => n + p.appends.length, 0)} bbappend(s).`,
     );
     for (const p of projects) {
       if (p.source.file) output.info(`Config source (${p.source.kind}): ${p.source.file}`);
