@@ -9,7 +9,7 @@ export interface MetaLensApi {
   refresh(): Promise<void>;
 }
 
-const WATCH_GLOBS = ['**/conf/layer.conf', '**/conf/bblayers.conf', '**/*.bb'];
+const WATCH_GLOBS = ['**/conf/layer.conf', '**/conf/bblayers.conf', '**/*.{bb,bbappend,inc}'];
 const DEBOUNCE_MS = 300;
 
 export function activate(context: vscode.ExtensionContext): MetaLensApi {
