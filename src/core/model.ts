@@ -156,6 +156,32 @@ export interface ConfigSource {
   file?: string;
 }
 
+export interface BuiltImageFile {
+  path: string;
+  name: string;
+  /** Part after the image link name, e.g. ".rootfs.wic" or ".wic.bmap". */
+  ext: string;
+  size: number;
+  /** Modification time, ms since epoch. */
+  mtime: number;
+}
+
+/** An image found in `${TMPDIR}/deploy/images/<machine>/`. */
+export interface BuiltImage {
+  machine: string;
+  /** Image name, e.g. "core-image-minimal". */
+  name: string;
+  dir: string;
+  /** Unversioned ("latest") files of the image. */
+  files: BuiltImageFile[];
+  /** mtime of the latest manifest. */
+  builtAt?: number;
+  /** Number of distinct timestamped builds still in the deploy directory. */
+  builds: number;
+  /** Image recipe with the same name, when indexed. */
+  recipe?: string;
+}
+
 /** A layer found on disk but not listed in the active configuration. */
 export interface InactiveLayer {
   name: string;
@@ -173,6 +199,8 @@ export interface Project {
   kasFiles: string[];
   /** Layers in BBLAYERS order. */
   layers: Layer[];
+  /** Images already built in the build directory (empty if nothing was built). */
+  builtImages: BuiltImage[];
   /** Layers present in the workspace but not in BBLAYERS (only for a bblayers.conf source). */
   inactiveLayers: InactiveLayer[];
   /** Every recipe picked up by BBFILES, sorted by category, PN, then path. */

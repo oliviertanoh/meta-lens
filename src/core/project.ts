@@ -19,6 +19,7 @@ import type {
   ProjectConfig,
   RecipeFile,
 } from './model';
+import { findBuiltImages, tmpDirCandidates } from './deploy';
 import { classifyLayers } from './layerOrigin';
 import { markOverlays } from './overlay';
 import { detectRelease } from './release';
@@ -393,6 +394,22 @@ export async function loadProject(root: string, opts: LoadOptions = {}): Promise
   for (const l of layers) l.origin = origins.get(l.path) ?? l.origin;
   const index = buildIndex(loaded);
   const config = await loadConfig(source, layers, diagnostics);
+  // Build directory: next to bblayers.conf, or kas' default build/ folder.
+  const topdir =
+    source.kind === 'bblayers' && source.file
+      ? path.dirname(path.dirname(source.file))
+      : source.kind === 'kas'
+        ? path.join(root, 'build')
+        : undefined;
+  const builtImages = topdir
+    ? await findBuiltImages(await tmpDirCandidates(topdir, config.confFiles))
+    : [];
+  for (const img of builtImages) {
+    const r = index.recipes.find(
+      (x) => x.pn === img.name && (!x.overlay || x.overlay.winner === x.path),
+    );
+    if (r) img.recipe = r.path;
+  }
   const inactiveLayers =
     source.kind === 'bblayers' ? await findInactive(found.layerDirs, layers) : [];
 
@@ -403,6 +420,7 @@ export async function loadProject(root: string, opts: LoadOptions = {}): Promise
     kasFiles: found.kasFiles,
     layers,
     inactiveLayers,
+    builtImages,
     ...index,
     config,
     diagnostics,
