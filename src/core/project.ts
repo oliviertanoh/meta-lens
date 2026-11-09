@@ -19,6 +19,7 @@ import type {
   RecipeFile,
 } from './model';
 import { classifyLayers } from './layerOrigin';
+import { markOverlays } from './overlay';
 import { detectRelease } from './release';
 import {
   BbfilesMatcher,
@@ -169,6 +170,7 @@ function buildIndex(loaded: LoadedLayer[]) {
   });
 
   const match = matchAppends(recipeFiles, appendFiles, ranks);
+  markOverlays(match.recipes, ranks);
   for (const layer of layers) layer.diagnostics.push(...(match.diagnostics.get(layer.path) ?? []));
 
   const recipes = match.recipes.sort(

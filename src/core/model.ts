@@ -86,6 +86,13 @@ export interface RecipeFile extends RecipeName {
 export interface Recipe extends RecipeFile {
   /** Paths of the bbappends applied to this recipe, in application order. */
   appends: string[];
+  /** Set when the same PN is provided by several layers. */
+  overlay?: {
+    /** Path of the recipe BitBake would pick (highest priority, then version). */
+    winner: string;
+    /** Every recipe with this PN, preferred first. */
+    candidates: string[];
+  };
 }
 
 export interface BbAppend extends RecipeName {
