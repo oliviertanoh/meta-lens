@@ -3,3 +3,6 @@ dist/
 out/
 .vscode-test/
 *.vsix
+
+# Local assistant instructions, not part of the project
+CLAUDE.md
