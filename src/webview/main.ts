@@ -25,7 +25,8 @@ export type ToHost =
 export type FromHost =
   | { type: 'model'; model: SidebarModel }
   | { type: 'focusFilter' }
-  | { type: 'setFilter'; filter: Partial<RecipeFilter> };
+  /** Complete filter that replaces the current one. */
+  | { type: 'setFilter'; filter: RecipeFilter };
 
 declare function acquireVsCodeApi(): {
   postMessage(msg: ToHost): void;
@@ -175,7 +176,10 @@ window.addEventListener('message', (e: MessageEvent<FromHost>) => {
     rerender();
     $('filter').focus();
   } else if (msg.type === 'setFilter') {
-    setFilter(msg.filter);
+    state = { ...state, filter: msg.filter };
+    ($('filter') as HTMLInputElement).value = msg.filter.text ?? '';
+    save();
+    rerender();
   }
 });
 

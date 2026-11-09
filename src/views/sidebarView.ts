@@ -47,8 +47,16 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.D
     void this.post({ type: 'focusFilter' });
   }
 
-  setFilter(filter: Partial<RecipeFilter>): void {
-    void this.post({ type: 'setFilter', filter });
+  /**
+   * Merge `changes` into the current filter and send the whole result: JSON
+   * messages drop `undefined`, so sending only the changes could not clear a key.
+   */
+  setFilter(changes: Partial<RecipeFilter>): void {
+    const next: RecipeFilter = { ...this.filter, ...changes };
+    for (const k of Object.keys(next) as (keyof RecipeFilter)[]) {
+      if (next[k] === undefined) delete next[k];
+    }
+    void this.post({ type: 'setFilter', filter: next });
   }
 
   getFilter(): RecipeFilter {
