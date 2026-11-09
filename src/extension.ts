@@ -1,16 +1,18 @@
 import * as vscode from 'vscode';
 import type { Diagnostic, Project } from './core/model';
 import { loadProject } from './core/project';
-import { isFilterActive, type RecipeFilter } from './core/recipeTree';
-import { BadgeProvider } from './views/badges';
-import { LayersViewProvider } from './views/layersView';
-import { ProjectViewProvider } from './views/projectView';
-import { RecipesViewProvider } from './views/recipesView';
+import type { RecipeFilter } from './core/recipeTree';
+import { buildSidebarModel } from './core/sidebarModel';
+import { SIDEBAR_VIEW_ID, SidebarViewProvider } from './views/sidebarView';
 
 /** Public API returned by activate(), used by integration tests. */
 export interface MetaLensApi {
   getProjects(): readonly Project[];
   refresh(): Promise<void>;
+  /** Resolves when the sidebar webview script is running. */
+  sidebarReady(): Promise<void>;
+  /** Recipe filter as last reported by the webview. */
+  getRecipeFilter(): RecipeFilter;
 }
 
 /** Any change to these files triggers a rescan (debounced). */
@@ -24,43 +26,13 @@ const DEBOUNCE_MS = 300;
 
 export function activate(context: vscode.ExtensionContext): MetaLensApi {
   const output = vscode.window.createOutputChannel('meta-lens', { log: true });
-  const projectProvider = new ProjectViewProvider();
-  const projectView = vscode.window.createTreeView('metaLens.project', {
-    treeDataProvider: projectProvider,
-  });
-  context.subscriptions.push(projectProvider, projectView);
-  const layersProvider = new LayersViewProvider();
-  const layersView = vscode.window.createTreeView('metaLens.layers', {
-    treeDataProvider: layersProvider,
-    showCollapseAll: false,
-  });
-  context.subscriptions.push(vscode.window.registerFileDecorationProvider(new BadgeProvider()));
-  const recipesProvider = new RecipesViewProvider();
-  const recipesView = vscode.window.createTreeView('metaLens.recipes', {
-    treeDataProvider: recipesProvider,
-    showCollapseAll: true,
-  });
-  recipesProvider.onDidChangeCounts(({ shown, total, noProjectLayer }) => {
-    recipesView.description =
-      total === 0 ? undefined : shown === total ? `${total}` : `${shown} / ${total}`;
-    const f = recipesProvider.getFilter();
-    const lines: string[] = [];
-    if (total > 0 && f.projectOnly) {
-      lines.push(
-        noProjectLayer
-          ? 'No project layer detected: showing all recipes (see metaLens.projectLayers).'
-          : 'Project recipes: created or extended by your layers.',
-      );
-    }
-    const parts = [
-      f.text?.trim() ? `"${f.text.trim()}"` : undefined,
-      f.hasAppends ? 'has bbappends' : undefined,
-    ].filter(Boolean);
-    if (parts.length) lines.push(`Filter: ${parts.join(' · ')}`);
-    recipesView.message = lines.length ? lines.join(' ') : undefined;
-  });
-  void vscode.commands.executeCommand('setContext', 'metaLens.projectOnly', true);
-  context.subscriptions.push(output, layersProvider, layersView, recipesProvider, recipesView);
+  const sidebar = new SidebarViewProvider(context.extensionUri);
+  const ready = sidebar.whenReady();
+  context.subscriptions.push(
+    output,
+    sidebar,
+    vscode.window.registerWebviewViewProvider(SIDEBAR_VIEW_ID, sidebar),
+  );
 
   let projects: Project[] = [];
   let generation = 0;
@@ -96,16 +68,9 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     if (gen !== generation) return; // A newer refresh superseded this one.
 
     projects = loaded.filter((p): p is Project => p !== undefined);
-    const layers = projects.flatMap((p) => p.layers);
-    layersProvider.setLayers(layers);
-    layersView.description = layers.length ? String(layers.length) : undefined;
-    projectProvider.setProjects(projects);
-    recipesProvider.setData(
-      projects.flatMap((p) => p.recipes),
-      projects.flatMap((p) => p.appends),
-      layers,
-    );
+    sidebar.setModel(buildSidebarModel(projects, (f) => vscode.workspace.asRelativePath(f, false)));
 
+    const layers = projects.flatMap((p) => p.layers);
     output.info(
       `Scanned ${projects.length} folder(s) in ${Date.now() - started} ms: ${layers.length} layer(s), ${projects.reduce((n, p) => n + p.recipes.length, 0)} recipe(s), ${projects.reduce((n, p) => n + p.appends.length, 0)} bbappend(s).`,
     );
@@ -135,65 +100,23 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     context.subscriptions.push(watcher);
   }
 
-  // RECIPES filters
-  const applyRecipeFilter = (filter: RecipeFilter) => {
-    recipesProvider.setFilter(filter);
-    void vscode.commands.executeCommand(
-      'setContext',
-      'metaLens.hasAppendsFilter',
-      !!filter.hasAppends,
-    );
-    void vscode.commands.executeCommand(
-      'setContext',
-      'metaLens.recipeFilterActive',
-      isFilterActive(filter),
-    );
-    void vscode.commands.executeCommand('setContext', 'metaLens.projectOnly', !!filter.projectOnly);
-  };
-
-  const editTextFilter = () => {
-    const input = vscode.window.createInputBox();
-    input.title = 'Filter recipes';
-    input.placeholder = 'Filter recipes… (PN or file name)';
-    input.value = recipesProvider.getFilter().text ?? '';
-    let timer: NodeJS.Timeout | undefined;
-    input.onDidChangeValue((value) => {
-      if (timer) clearTimeout(timer);
-      timer = setTimeout(
-        () => applyRecipeFilter({ ...recipesProvider.getFilter(), text: value }),
-        150,
-      );
-    });
-    input.onDidAccept(() => input.hide());
-    input.onDidHide(() => {
-      if (timer) clearTimeout(timer);
-      applyRecipeFilter({ ...recipesProvider.getFilter(), text: input.value });
-      input.dispose();
-    });
-    input.show();
-  };
-
-  context.subscriptions.push(
-    vscode.commands.registerCommand('meta-lens.filterRecipes', editTextFilter),
-    vscode.commands.registerCommand('meta-lens.filterAppends', () =>
-      applyRecipeFilter({ ...recipesProvider.getFilter(), hasAppends: true }),
-    ),
-    vscode.commands.registerCommand('meta-lens.filterAppendsOff', () =>
-      applyRecipeFilter({ ...recipesProvider.getFilter(), hasAppends: false }),
-    ),
-    vscode.commands.registerCommand('meta-lens.clearRecipeFilter', () =>
-      applyRecipeFilter({ projectOnly: recipesProvider.getFilter().projectOnly }),
-    ),
-    vscode.commands.registerCommand('meta-lens.showAllRecipes', () =>
-      applyRecipeFilter({ ...recipesProvider.getFilter(), projectOnly: false }),
-    ),
-    vscode.commands.registerCommand('meta-lens.showProjectRecipes', () =>
-      applyRecipeFilter({ ...recipesProvider.getFilter(), projectOnly: true }),
-    ),
-  );
+  const setProjectOnly = (on: boolean) =>
+    vscode.commands.executeCommand('setContext', 'metaLens.projectOnly', on);
+  void setProjectOnly(true);
+  sidebar.onDidChangeFilter((f) => void setProjectOnly(!!f.projectOnly));
 
   context.subscriptions.push(
     vscode.commands.registerCommand('meta-lens.refresh', () => refresh()),
+    vscode.commands.registerCommand('meta-lens.filterRecipes', () => sidebar.focusFilter()),
+    vscode.commands.registerCommand('meta-lens.filterAppends', () =>
+      sidebar.setFilter({ hasAppends: !sidebar.getFilter().hasAppends }),
+    ),
+    vscode.commands.registerCommand('meta-lens.showAllRecipes', () =>
+      sidebar.setFilter({ projectOnly: false }),
+    ),
+    vscode.commands.registerCommand('meta-lens.showProjectRecipes', () =>
+      sidebar.setFilter({ projectOnly: true }),
+    ),
     vscode.workspace.onDidChangeWorkspaceFolders(scheduleRefresh),
     vscode.workspace.onDidChangeConfiguration((e) => {
       if (e.affectsConfiguration('metaLens')) scheduleRefresh();
@@ -208,6 +131,8 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
       await initial;
       await refresh();
     },
+    sidebarReady: () => ready,
+    getRecipeFilter: () => sidebar.getFilter(),
   };
 }
 

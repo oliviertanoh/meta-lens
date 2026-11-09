@@ -41,33 +41,12 @@
     "views": {
       "metaLens": [
         {
-          "id": "metaLens.project",
-          "name": "Project"
-        },
-        {
-          "id": "metaLens.layers",
-          "name": "Layers"
-        },
-        {
-          "id": "metaLens.recipes",
-          "name": "Recipes"
+          "type": "webview",
+          "id": "metaLens.sidebar",
+          "name": "meta-lens"
         }
       ]
     },
-    "viewsWelcome": [
-      {
-        "view": "metaLens.project",
-        "contents": "No Yocto project found in this workspace.\n[Refresh](command:meta-lens.refresh)"
-      },
-      {
-        "view": "metaLens.recipes",
-        "contents": "No recipe found."
-      },
-      {
-        "view": "metaLens.layers",
-        "contents": "No Yocto layer found in this workspace.\n[Refresh](command:meta-lens.refresh)"
-      }
-    ],
     "commands": [
       {
         "command": "meta-lens.refresh",
@@ -77,27 +56,14 @@
       },
       {
         "command": "meta-lens.filterRecipes",
-        "title": "Filter Recipes…",
-        "category": "meta-lens",
-        "icon": "$(search)"
-      },
-      {
-        "command": "meta-lens.filterAppends",
-        "title": "Show Only Recipes With bbappends",
+        "title": "Filter Recipes",
         "category": "meta-lens",
         "icon": "$(filter)"
       },
       {
-        "command": "meta-lens.filterAppendsOff",
-        "title": "Show All Recipes",
-        "category": "meta-lens",
-        "icon": "$(filter-filled)"
-      },
-      {
-        "command": "meta-lens.clearRecipeFilter",
-        "title": "Clear Recipe Filters",
-        "category": "meta-lens",
-        "icon": "$(clear-all)"
+        "command": "meta-lens.filterAppends",
+        "title": "Toggle Has appends Filter",
+        "category": "meta-lens"
       },
       {
         "command": "meta-lens.showAllRecipes",
@@ -115,55 +81,14 @@
     "menus": {
       "view/title": [
         {
-          "command": "meta-lens.showAllRecipes",
-          "when": "view == metaLens.recipes && metaLens.projectOnly",
-          "group": "navigation@0"
-        },
-        {
-          "command": "meta-lens.showProjectRecipes",
-          "when": "view == metaLens.recipes && !metaLens.projectOnly",
-          "group": "navigation@0"
-        },
-        {
           "command": "meta-lens.refresh",
-          "when": "view == metaLens.layers",
-          "group": "navigation"
-        },
-        {
-          "command": "meta-lens.filterRecipes",
-          "when": "view == metaLens.recipes",
+          "when": "view == metaLens.sidebar",
           "group": "navigation@1"
         },
         {
-          "command": "meta-lens.filterAppends",
-          "when": "view == metaLens.recipes && !metaLens.hasAppendsFilter",
+          "command": "meta-lens.filterRecipes",
+          "when": "view == metaLens.sidebar",
           "group": "navigation@2"
-        },
-        {
-          "command": "meta-lens.filterAppendsOff",
-          "when": "view == metaLens.recipes && metaLens.hasAppendsFilter",
-          "group": "navigation@2"
-        },
-        {
-          "command": "meta-lens.clearRecipeFilter",
-          "when": "view == metaLens.recipes && metaLens.recipeFilterActive",
-          "group": "navigation@3"
-        },
-        {
-          "command": "meta-lens.refresh",
-          "when": "view == metaLens.recipes",
-          "group": "navigation@4"
-        },
-        {
-          "command": "meta-lens.refresh",
-          "when": "view == metaLens.project",
-          "group": "navigation"
-        }
-      ],
-      "commandPalette": [
-        {
-          "command": "meta-lens.filterAppendsOff",
-          "when": "false"
         }
       ]
     },
@@ -207,6 +132,7 @@
     "@types/mocha": "^10.0.10",
     "@types/node": "^20.19.43",
     "@types/vscode": "~1.90.0",
+    "@vscode/codicons": "^0.0.46-24",
     "@vscode/test-electron": "^2.5.2",
     "esbuild": "^0.28.2",
     "eslint": "^10.14.0",

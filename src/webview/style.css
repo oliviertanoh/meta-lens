@@ -1,0 +1,262 @@
+/* meta-lens sidebar. Colors come from the VS Code theme only. */
+:root {
+  --row-h: 22px;
+  --indent: 16px;
+}
+body {
+  margin: 0;
+  padding: 0 0 12px;
+  font-family: var(--vscode-font-family);
+  font-size: var(--vscode-font-size);
+  color: var(--vscode-foreground);
+  background: transparent;
+  user-select: none;
+}
+.mono {
+  font-family: var(--vscode-editor-font-family);
+  font-size: calc(var(--vscode-font-size) * 0.95);
+}
+.grow {
+  flex: 1;
+}
+.muted,
+.meta,
+.count,
+.section-count {
+  color: var(--vscode-descriptionForeground);
+}
+
+/* Section headers (PROJECT, LAYERS, RECIPES) */
+.section-header {
+  display: flex;
+  align-items: center;
+  height: var(--row-h);
+  padding: 0 8px 0 4px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  cursor: pointer;
+  border-top: 1px solid var(--vscode-sideBarSectionHeader-border, transparent);
+}
+.section-header:first-child {
+  border-top: none;
+}
+.section-title {
+  margin-left: 2px;
+}
+.section-count {
+  font-weight: 400;
+}
+.section-body {
+  padding-bottom: 6px;
+}
+
+/* Generic rows */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  height: var(--row-h);
+  padding: 0 8px 0 calc(8px + var(--depth, 0) * var(--indent));
+  white-space: nowrap;
+  overflow: hidden;
+  outline: none;
+  border: 1px solid transparent;
+}
+.clickable {
+  cursor: pointer;
+}
+.row:hover,
+.kv.clickable:hover {
+  background: var(--vscode-list-hoverBackground);
+}
+.row:focus,
+.row.selected {
+  background: var(--vscode-list-activeSelectionBackground);
+  color: var(--vscode-list-activeSelectionForeground);
+  border-color: var(--vscode-list-focusOutline, var(--vscode-focusBorder));
+}
+.row:focus .meta,
+.row:focus .count {
+  color: inherit;
+  opacity: 0.8;
+}
+.name {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.meta {
+  font-size: 0.9em;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.twisty,
+.twisty-space {
+  width: 16px;
+  flex: none;
+}
+.shadowed .name {
+  text-decoration: line-through;
+  opacity: 0.7;
+}
+
+/* Pills / badges */
+.pill {
+  flex: none;
+  min-width: 18px;
+  padding: 0 6px;
+  border-radius: 10px;
+  font-size: 11px;
+  line-height: 16px;
+  text-align: center;
+  font-weight: 600;
+  background: var(--vscode-badge-background);
+  color: var(--vscode-badge-foreground);
+}
+.pill-blue {
+  background: var(--vscode-button-background);
+  color: var(--vscode-button-foreground);
+}
+.pill-ovr {
+  background: transparent;
+  color: var(--vscode-charts-yellow);
+  border: 1px solid var(--vscode-charts-yellow);
+  border-radius: 3px;
+  line-height: 14px;
+}
+
+/* Colors */
+.tone-purple {
+  color: var(--vscode-charts-purple);
+}
+.tone-yellow {
+  color: var(--vscode-charts-yellow);
+}
+.tone-orange {
+  color: var(--vscode-charts-orange);
+}
+.tone-blue {
+  color: var(--vscode-charts-blue);
+}
+.warn {
+  color: var(--vscode-list-warningForeground, var(--vscode-charts-yellow));
+}
+.err {
+  color: var(--vscode-list-errorForeground, var(--vscode-charts-red));
+}
+
+/* PROJECT key/value grid */
+.kv-grid {
+  padding: 2px 0;
+}
+.kv {
+  display: grid;
+  grid-template-columns: 76px 1fr;
+  align-items: center;
+  gap: 8px;
+  height: var(--row-h);
+  padding: 0 8px 0 24px;
+  white-space: nowrap;
+  overflow: hidden;
+  outline: none;
+  border: 1px solid transparent;
+}
+.kv .key {
+  color: var(--vscode-descriptionForeground);
+}
+.kv .value {
+  font-family: var(--vscode-editor-font-family);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.kv .warn {
+  margin-left: 4px;
+}
+.kv:has(.dot) .value {
+  font-family: var(--vscode-font-family);
+}
+.dot {
+  display: inline-block;
+  width: 8px;
+  height: 8px;
+  margin-right: 6px;
+  border-radius: 50%;
+  background: var(--vscode-testing-iconPassed, var(--vscode-charts-green));
+}
+.kv:has(.dot) {
+  grid-template-columns: 76px auto 1fr;
+}
+.note {
+  padding-left: 24px;
+}
+.note-text {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  font-size: 0.92em;
+}
+.subhead {
+  padding: 4px 8px 0 24px;
+  font-weight: 600;
+}
+
+/* RECIPES filter box and chips */
+.filter-box {
+  padding: 4px 8px 4px 24px;
+}
+.filter-box input {
+  box-sizing: border-box;
+  width: 100%;
+  height: 24px;
+  padding: 0 6px;
+  font: inherit;
+  color: var(--vscode-input-foreground);
+  background: var(--vscode-input-background);
+  border: 1px solid var(--vscode-input-border, transparent);
+  border-radius: 2px;
+  outline: none;
+}
+.filter-box input:focus {
+  border-color: var(--vscode-focusBorder);
+}
+.filter-box input::placeholder {
+  color: var(--vscode-input-placeholderForeground);
+}
+.chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  padding: 2px 8px 6px 24px;
+}
+.chip {
+  padding: 1px 9px;
+  font: inherit;
+  font-size: 12px;
+  border: none;
+  border-radius: 10px;
+  cursor: pointer;
+  color: var(--vscode-foreground);
+  background: var(--vscode-badge-background);
+}
+.chip:hover {
+  filter: brightness(1.15);
+}
+.chip.active {
+  color: var(--vscode-button-foreground);
+  background: var(--vscode-button-background);
+}
+.chip:focus-visible {
+  outline: 1px solid var(--vscode-focusBorder);
+  outline-offset: 1px;
+}
+.hint,
+.empty {
+  padding: 4px 8px 4px 24px;
+  color: var(--vscode-descriptionForeground);
+  font-style: italic;
+  white-space: normal;
+}
+.codicon {
+  font-size: 16px;
+  flex: none;
+}

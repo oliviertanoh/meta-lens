@@ -2,14 +2,15 @@ import * as assert from 'node:assert/strict';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { MetaLensApi } from '../../../src/extension';
-import {
-  BadgeProvider,
-  badgeText,
-  layerBadgeUri,
-  priorityBadge,
-  recipeBadgeUri,
-} from '../../../src/views/badges';
-import { projectRows } from '../../../src/views/projectView';
+
+/** Poll until `check` is true or the timeout expires. */
+async function until(check: () => boolean, what: string, ms = 10_000): Promise<void> {
+  const end = Date.now() + ms;
+  while (!check()) {
+    if (Date.now() > end) throw new Error(`timeout waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, 50));
+  }
+}
 
 suite('meta-lens smoke test (bsp-custom)', () => {
   let api: MetaLensApi;
@@ -28,26 +29,29 @@ suite('meta-lens smoke test (bsp-custom)', () => {
       'meta-lens.refresh',
       'meta-lens.filterRecipes',
       'meta-lens.filterAppends',
-      'meta-lens.filterAppendsOff',
-      'meta-lens.clearRecipeFilter',
+      'meta-lens.showAllRecipes',
+      'meta-lens.showProjectRecipes',
     ]) {
       assert.ok(commands.includes(c), `${c} missing`);
     }
   });
 
-  test('lists layers in BBLAYERS order', () => {
-    const names = api.getProjects().flatMap((p) => p.layers.map((l) => l.name));
-    assert.deepEqual(names, [
-      'meta',
-      'meta-poky',
-      'meta-acme-bsp',
-      'meta-oe',
-      'meta-qt6',
-      'meta-acme',
-    ]);
+  test('lists layers in BBLAYERS order with their origin', () => {
+    const layers = api.getProjects().flatMap((p) => p.layers);
+    assert.deepEqual(
+      layers.map((l) => [l.name, l.origin.kind]),
+      [
+        ['meta', 'upstream'],
+        ['meta-poky', 'upstream'],
+        ['meta-acme-bsp', 'project'],
+        ['meta-oe', 'upstream'],
+        ['meta-qt6', 'project'],
+        ['meta-acme', 'project'],
+      ],
+    );
   });
 
-  test('indexes recipes and their bbappends', () => {
+  test('indexes recipes, bbappends, overlays and images', () => {
     const p = api.getProjects()[0];
     assert.ok(p);
     const busybox = p.recipes.find((r) => r.pn === 'busybox');
@@ -55,54 +59,32 @@ suite('meta-lens smoke test (bsp-custom)', () => {
       busybox?.appends.map((a) => path.basename(path.dirname(path.dirname(path.dirname(a))))),
       ['meta-acme-bsp', 'meta-acme'],
     );
+    assert.ok(p.recipes.some((r) => r.pn === 'openssh' && r.overlay));
+    assert.ok(p.recipes.some((r) => r.pn === 'acme-image' && r.image));
+    assert.deepEqual(
+      p.config.confFiles.map((f) => path.basename(f)),
+      ['local.conf'],
+    );
   });
 
-  test('filter commands run', async () => {
+  test('sidebar webview starts and talks to the extension', async () => {
+    await vscode.commands.executeCommand('workbench.view.extension.metaLens');
+    await Promise.race([
+      api.sidebarReady(),
+      new Promise((_, reject) => setTimeout(() => reject(new Error('webview not ready')), 15_000)),
+    ]);
+    // The webview reports its initial filter: project recipes only.
+    await until(() => api.getRecipeFilter().projectOnly === true, 'initial filter');
+
+    // Command → webview → back to the extension.
     await vscode.commands.executeCommand('meta-lens.filterAppends');
-    await vscode.commands.executeCommand('meta-lens.filterAppendsOff');
-    await vscode.commands.executeCommand('meta-lens.clearRecipeFilter');
-  });
+    await until(() => api.getRecipeFilter().hasAppends === true, 'hasAppends on');
+    await vscode.commands.executeCommand('meta-lens.filterAppends');
+    await until(() => api.getRecipeFilter().hasAppends === false, 'hasAppends off');
 
-  test('+N badge', () => {
-    const provider = new BadgeProvider();
-    const deco = provider.provideFileDecoration(recipeBadgeUri('/x/busybox_1.36.1.bb', 2));
-    assert.equal(deco?.badge, '+2');
-    assert.equal(provider.provideFileDecoration(recipeBadgeUri('/x/a.bb', 0)), undefined);
-    assert.equal(provider.provideFileDecoration(vscode.Uri.file('/x/a.bb')), undefined);
-    assert.deepEqual([1, 9, 10, 99, 250].map(badgeText), ['+1', '+9', '10', '99', '99']);
-  });
-
-  test('priority badge', () => {
-    const provider = new BadgeProvider();
-    assert.equal(provider.provideFileDecoration(layerBadgeUri('/l', 10))?.badge, '10');
-    assert.equal(provider.provideFileDecoration(layerBadgeUri('/l', undefined))?.badge, '?');
-    assert.equal(provider.provideFileDecoration(layerBadgeUri('/l', 120)), undefined);
-    assert.deepEqual([0, 5, 99, 100, -1].map(priorityBadge), [
-      '0',
-      '5',
-      '99',
-      undefined,
-      undefined,
-    ]);
-  });
-
-  test('PROJECT rows', () => {
-    const p = api.getProjects()[0];
-    assert.ok(p);
-    const rows = projectRows(p).map((n) => {
-      assert.equal(n.kind, 'row');
-      return n.kind === 'row' ? [n.item.label, n.item.description] : [];
-    });
-    assert.deepEqual(rows, [
-      ['Config', path.join('build', 'conf', 'bblayers.conf')],
-      ['Release', 'scarthgap (5.0 LTS)'],
-      ['MACHINE', 'acme-rpi4'],
-      ['DISTRO', 'acme-distro'],
-      ['Mode', 'Static scan · no bitbake env'],
-      [
-        `BBLAYERS entry "/home/builder/bsp/sources/meta-openembedded/meta-oe" resolved to ${path.join('sources', 'meta-openembedded', 'meta-oe')} by guess.`,
-        '',
-      ],
-    ]);
+    await vscode.commands.executeCommand('meta-lens.showAllRecipes');
+    await until(() => api.getRecipeFilter().projectOnly === false, 'show all');
+    await vscode.commands.executeCommand('meta-lens.showProjectRecipes');
+    await until(() => api.getRecipeFilter().projectOnly === true, 'project only');
   });
 });
