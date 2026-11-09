@@ -2,7 +2,13 @@ import * as assert from 'node:assert/strict';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { MetaLensApi } from '../../../src/extension';
-import { AppendBadgeProvider, badgeText, recipeBadgeUri } from '../../../src/views/appendBadges';
+import {
+  BadgeProvider,
+  badgeText,
+  layerBadgeUri,
+  priorityBadge,
+  recipeBadgeUri,
+} from '../../../src/views/badges';
 import { projectRows } from '../../../src/views/projectView';
 
 suite('meta-lens smoke test (bsp-custom)', () => {
@@ -58,12 +64,26 @@ suite('meta-lens smoke test (bsp-custom)', () => {
   });
 
   test('+N badge', () => {
-    const provider = new AppendBadgeProvider();
+    const provider = new BadgeProvider();
     const deco = provider.provideFileDecoration(recipeBadgeUri('/x/busybox_1.36.1.bb', 2));
     assert.equal(deco?.badge, '+2');
     assert.equal(provider.provideFileDecoration(recipeBadgeUri('/x/a.bb', 0)), undefined);
     assert.equal(provider.provideFileDecoration(vscode.Uri.file('/x/a.bb')), undefined);
     assert.deepEqual([1, 9, 10, 99, 250].map(badgeText), ['+1', '+9', '10', '99', '99']);
+  });
+
+  test('priority badge', () => {
+    const provider = new BadgeProvider();
+    assert.equal(provider.provideFileDecoration(layerBadgeUri('/l', 10))?.badge, '10');
+    assert.equal(provider.provideFileDecoration(layerBadgeUri('/l', undefined))?.badge, '?');
+    assert.equal(provider.provideFileDecoration(layerBadgeUri('/l', 120)), undefined);
+    assert.deepEqual([0, 5, 99, 100, -1].map(priorityBadge), [
+      '0',
+      '5',
+      '99',
+      undefined,
+      undefined,
+    ]);
   });
 
   test('PROJECT rows', () => {

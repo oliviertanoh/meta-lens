@@ -1,7 +1,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { BbAppend, Layer, Recipe } from '../core/model';
-import { recipeBadgeUri } from './appendBadges';
+import { recipeBadgeUri } from './badges';
 import {
   buildRecipeTree,
   type RecipeFilter,

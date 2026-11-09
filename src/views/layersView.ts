@@ -1,5 +1,6 @@
 import * as vscode from 'vscode';
 import type { Diagnostic, Layer } from '../core/model';
+import { layerBadgeUri, priorityBadge } from './badges';
 
 function worstSeverity(diags: Diagnostic[]): 'error' | 'warning' | undefined {
   if (diags.some((d) => d.severity === 'error')) return 'error';
@@ -17,6 +18,7 @@ function tooltip(layer: Layer): vscode.MarkdownString {
     layer.collections.length ? layer.collections.map((c) => `\`${c}\``).join(', ') : '—',
   );
   row('Priority', layer.priority !== undefined ? String(layer.priority) : '—');
+  row('Origin', `${layer.origin.kind} (${layer.origin.reason})`);
   row('Recipes', String(layer.recipeCount));
   row('bbappends', String(layer.appendCount));
   row(
@@ -43,9 +45,10 @@ function tooltip(layer: Layer): vscode.MarkdownString {
 export class LayerItem extends vscode.TreeItem {
   constructor(readonly layer: Layer) {
     super(layer.name, vscode.TreeItemCollapsibleState.None);
-    const prio = layer.priority !== undefined ? `prio ${layer.priority}` : 'prio ?';
     const recipes = `${layer.recipeCount} ${layer.recipeCount === 1 ? 'recipe' : 'recipes'}`;
-    this.description = `${recipes} · ${prio}`;
+    // The priority is drawn as a badge on the right; keep it in the text only when it cannot fit.
+    this.description =
+      priorityBadge(layer.priority) === undefined ? `${recipes} · prio ${layer.priority}` : recipes;
     this.tooltip = tooltip(layer);
     this.id = layer.path;
 
@@ -58,8 +61,8 @@ export class LayerItem extends vscode.TreeItem {
           : new vscode.ThemeIcon('layers');
     this.contextValue = severity ? `layer.${severity}` : 'layer';
 
+    this.resourceUri = layerBadgeUri(layer.path, layer.priority);
     if (layer.layerConf) {
-      this.resourceUri = vscode.Uri.file(layer.layerConf);
       this.command = {
         command: 'vscode.open',
         title: 'Open layer.conf',
