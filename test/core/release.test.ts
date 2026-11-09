@@ -11,6 +11,7 @@ const layer = (name: string, collections: string[], seriesCompat: string[]): Lay
   bbfiles: [],
   bbfilesDynamic: [],
   bbfilesPerCollection: [],
+  origin: { kind: 'upstream', reason: '' },
   recipeCount: 0,
   appendCount: 0,
   diagnostics: [],

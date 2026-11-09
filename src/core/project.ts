@@ -18,6 +18,7 @@ import type {
   ProjectConfig,
   RecipeFile,
 } from './model';
+import { classifyLayers } from './layerOrigin';
 import { detectRelease } from './release';
 import {
   BbfilesMatcher,
@@ -77,6 +78,7 @@ function emptyLayer(name: string, dir: string): Layer {
     bbfiles: [],
     bbfilesDynamic: [],
     bbfilesPerCollection: [],
+    origin: { kind: 'project', reason: 'part of this repository' },
     recipeCount: 0,
     appendCount: 0,
     diagnostics: [],
@@ -280,6 +282,8 @@ async function loadConfig(
 export interface LoadOptions extends DiscoveryOptions {
   /** Force a specific bblayers.conf instead of the shallowest one found. */
   bblayersFile?: string;
+  /** Layer directory names to treat as project layers (`metaLens.projectLayers`). */
+  projectLayers?: string[];
 }
 
 export async function loadProject(root: string, opts: LoadOptions = {}): Promise<Project> {
@@ -357,6 +361,8 @@ export async function loadProject(root: string, opts: LoadOptions = {}): Promise
   );
   const layers = loaded.map((l) => l.layer);
   checkLayers(layers);
+  const origins = await classifyLayers(layers, root, { projectLayers: opts.projectLayers });
+  for (const l of layers) l.origin = origins.get(l.path) ?? l.origin;
   const index = buildIndex(loaded);
   const config = await loadConfig(source, layers, diagnostics);
 

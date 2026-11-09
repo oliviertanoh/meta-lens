@@ -19,6 +19,13 @@ export interface LayerDependency {
   line?: number;
 }
 
+export interface LayerOrigin {
+  /** `project`: written in this repo. `upstream`: community / vendor layer. */
+  kind: 'project' | 'upstream';
+  /** Human-readable reason, shown in tooltips. */
+  reason: string;
+}
+
 export interface Layer {
   /** Display name: the layer directory basename (e.g. `meta-poky`). */
   name: string;
@@ -42,6 +49,8 @@ export interface Layer {
    * collection name (meta-raspberrypi's `' '.join(... for layer in BBFILE_COLLECTIONS.split())`).
    */
   bbfilesPerCollection: string[];
+  /** Project or upstream layer (see layerOrigin.ts). */
+  origin: LayerOrigin;
   /** Number of recipes (`.bb` files picked up by BBFILES) in this layer. */
   recipeCount: number;
   /** Number of `.bbappend` files picked up by BBFILES in this layer. */
