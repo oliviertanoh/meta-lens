@@ -4,6 +4,7 @@ import { loadProject } from './core/project';
 import { isFilterActive, type RecipeFilter } from './core/recipeTree';
 import { AppendBadgeProvider } from './views/appendBadges';
 import { LayersViewProvider } from './views/layersView';
+import { ProjectViewProvider } from './views/projectView';
 import { RecipesViewProvider } from './views/recipesView';
 
 /** Public API returned by activate(), used by integration tests. */
@@ -17,6 +18,11 @@ const DEBOUNCE_MS = 300;
 
 export function activate(context: vscode.ExtensionContext): MetaLensApi {
   const output = vscode.window.createOutputChannel('meta-lens', { log: true });
+  const projectProvider = new ProjectViewProvider();
+  const projectView = vscode.window.createTreeView('metaLens.project', {
+    treeDataProvider: projectProvider,
+  });
+  context.subscriptions.push(projectProvider, projectView);
   const layersProvider = new LayersViewProvider();
   const layersView = vscode.window.createTreeView('metaLens.layers', {
     treeDataProvider: layersProvider,
@@ -73,6 +79,7 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     const layers = projects.flatMap((p) => p.layers);
     layersProvider.setLayers(layers);
     layersView.description = layers.length ? String(layers.length) : undefined;
+    projectProvider.setProjects(projects);
     recipesProvider.setData(
       projects.flatMap((p) => p.recipes),
       projects.flatMap((p) => p.appends),

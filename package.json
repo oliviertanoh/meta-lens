@@ -57,7 +57,7 @@
     "viewsWelcome": [
       {
         "view": "metaLens.project",
-        "contents": "Project details (MACHINE, DISTRO, release) are coming soon."
+        "contents": "No Yocto project found in this workspace.\n[Refresh](command:meta-lens.refresh)"
       },
       {
         "view": "metaLens.recipes",
@@ -131,6 +131,11 @@
           "command": "meta-lens.refresh",
           "when": "view == metaLens.recipes",
           "group": "navigation@4"
+        },
+        {
+          "command": "meta-lens.refresh",
+          "when": "view == metaLens.project",
+          "group": "navigation"
         }
       ],
       "commandPalette": [
