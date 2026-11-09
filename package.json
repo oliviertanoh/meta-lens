@@ -2,9 +2,17 @@
   "name": "meta-lens",
   "displayName": "meta-lens",
   "description": "Understand any Yocto repo in minutes: layers, recipes, bbappends and overlay chains, from static analysis only.",
-  "version": "0.0.1",
+  "version": "0.1.0",
   "publisher": "oliviertanoh",
   "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/oliviertanoh/meta-lens.git"
+  },
+  "bugs": {
+    "url": "https://github.com/oliviertanoh/meta-lens/issues"
+  },
+  "homepage": "https://github.com/oliviertanoh/meta-lens#readme",
   "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.90.0",
