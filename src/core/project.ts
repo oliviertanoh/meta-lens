@@ -13,6 +13,7 @@ import type {
   ConfValue,
   Diagnostic,
   IncludeFile,
+  InactiveLayer,
   Layer,
   Project,
   ProjectConfig,
@@ -286,6 +287,26 @@ async function loadConfig(
   };
 }
 
+/** Layers found by the scan that the active config does not load. */
+async function findInactive(found: string[], active: readonly Layer[]): Promise<InactiveLayer[]> {
+  const loaded = new Set(active.map((l) => path.resolve(l.path)));
+  const rest = found.filter((d) => !loaded.has(path.resolve(d)));
+  return Promise.all(
+    rest.map(async (dir) => {
+      const layerConf = path.join(dir, 'conf', 'layer.conf');
+      const text = await fs.readFile(layerConf, 'utf8').catch(() => '');
+      const info = parseLayerConf(text, layerConf);
+      return {
+        name: path.basename(dir),
+        path: dir,
+        layerConf,
+        collections: info.collections.map((c) => c.name),
+        priority: info.collections[0]?.priority,
+      };
+    }),
+  );
+}
+
 export interface LoadOptions extends DiscoveryOptions {
   /** Force a specific bblayers.conf instead of the shallowest one found. */
   bblayersFile?: string;
@@ -372,6 +393,8 @@ export async function loadProject(root: string, opts: LoadOptions = {}): Promise
   for (const l of layers) l.origin = origins.get(l.path) ?? l.origin;
   const index = buildIndex(loaded);
   const config = await loadConfig(source, layers, diagnostics);
+  const inactiveLayers =
+    source.kind === 'bblayers' ? await findInactive(found.layerDirs, layers) : [];
 
   return {
     root,
@@ -379,6 +402,7 @@ export async function loadProject(root: string, opts: LoadOptions = {}): Promise
     bblayersFiles: found.bblayersFiles,
     kasFiles: found.kasFiles,
     layers,
+    inactiveLayers,
     ...index,
     config,
     diagnostics,

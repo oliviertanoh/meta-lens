@@ -156,6 +156,15 @@ export interface ConfigSource {
   file?: string;
 }
 
+/** A layer found on disk but not listed in the active configuration. */
+export interface InactiveLayer {
+  name: string;
+  path: string;
+  layerConf: string;
+  collections: string[];
+  priority?: number;
+}
+
 export interface Project {
   root: string;
   source: ConfigSource;
@@ -164,6 +173,8 @@ export interface Project {
   kasFiles: string[];
   /** Layers in BBLAYERS order. */
   layers: Layer[];
+  /** Layers present in the workspace but not in BBLAYERS (only for a bblayers.conf source). */
+  inactiveLayers: InactiveLayer[];
   /** Every recipe picked up by BBFILES, sorted by category, PN, then path. */
   recipes: Recipe[];
   /** Every bbappend picked up by BBFILES, in application order (priority, BBLAYERS, path). */

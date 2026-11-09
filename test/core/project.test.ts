@@ -83,6 +83,7 @@ describe('loadProject', () => {
       'meta-acme',
       'meta-acme-bsp',
       'meta-oe',
+      'meta-unused',
       'meta',
       'meta-poky',
     ]);
@@ -276,6 +277,31 @@ describe('loadProject', () => {
       const p = await loadProject(fixture('bsp-custom', 'sources'));
       expect(p.config.machine).toBeUndefined();
       expect(p.config.release?.names).toEqual(['scarthgap']);
+    });
+  });
+
+  describe('inactive layers', () => {
+    it('bsp-custom: layers on disk but not in BBLAYERS', async () => {
+      const p = await loadProject(fixture('bsp-custom'));
+      expect(p.inactiveLayers).toEqual([
+        {
+          name: 'meta-unused',
+          path: fixture('bsp-custom', 'sources', 'meta-unused'),
+          layerConf: fixture('bsp-custom', 'sources', 'meta-unused', 'conf', 'layer.conf'),
+          collections: ['unused'],
+          priority: 7,
+        },
+      ]);
+      expect(p.recipes.some((r) => r.pn === 'foo')).toBe(false);
+    });
+
+    it('poky-mini: none', async () => {
+      expect((await loadProject(fixture('poky-mini'))).inactiveLayers).toEqual([]);
+    });
+
+    it('only meaningful with a bblayers.conf source', async () => {
+      expect((await loadProject(fixture('bsp-custom', 'sources'))).inactiveLayers).toEqual([]);
+      expect((await loadProject(fixture('kas-project'))).inactiveLayers).toEqual([]);
     });
   });
 });

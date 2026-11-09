@@ -25,6 +25,7 @@ describe('discover', () => {
         'sources/meta-acme',
         'sources/meta-acme-bsp',
         'sources/meta-openembedded/meta-oe',
+        'sources/meta-unused',
         'sources/poky/meta',
         'sources/poky/meta-poky',
       ].map((p) => fixture('bsp-custom', ...p.split('/'))),
