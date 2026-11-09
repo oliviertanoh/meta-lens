@@ -5,7 +5,7 @@
 meta-lens is a VS Code extension that maps a Yocto/OpenEmbedded project as soon as you open it. You don't need a sourced environment or a bitbake run.
 It shows your layers with their priorities and dependencies, every recipe with the bbappends applied to it, and the full overlay chain, so you can see which layer changes what, and why.
 
-> Status: early development (v0.1 in progress).
+> Status: v0.1 MVP (PROJECT, LAYERS and RECIPES views, static analysis). Overlay chain, CodeLens and diagnostics come next.
 
 ## Features
 - **Layers**: from `bblayers.conf` or kas files, with priority, recipe count and compatibility warnings
