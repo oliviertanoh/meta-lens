@@ -12,7 +12,7 @@ Version 0.1.0 is a pre-release. Bug reports and odd repositories are welcome in 
 
 <p>
   <img src="docs/images/sidebar.png" alt="meta-lens side panel" width="340">
-  <img src="docs/images/overlay-chain.png" alt="Overlay chain of busybox" width="420">
+  <!-- <img src="docs/images/overlay-chain.png" alt="Overlay chain of busybox" width="420"> -->
 </p>
 
 ## What it shows
