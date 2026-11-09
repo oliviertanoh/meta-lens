@@ -58,7 +58,7 @@ export class LayerItem extends vscode.TreeItem {
         ? new vscode.ThemeIcon('error', new vscode.ThemeColor('list.errorForeground'))
         : severity === 'warning'
           ? new vscode.ThemeIcon('warning', new vscode.ThemeColor('list.warningForeground'))
-          : new vscode.ThemeIcon('layers');
+          : new vscode.ThemeIcon('layers', new vscode.ThemeColor('charts.purple'));
     this.contextValue = severity ? `layer.${severity}` : 'layer';
 
     this.resourceUri = layerBadgeUri(layer.path, layer.priority);

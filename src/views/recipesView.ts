@@ -129,7 +129,7 @@ export class RecipesViewProvider implements vscode.TreeDataProvider<Node> {
         );
         item.id = `recipe:${r.path}:${this.filterKey()}`;
         item.description = [r.pv, this.layerName(r.layer)].filter(Boolean).join(' · ');
-        item.iconPath = new vscode.ThemeIcon('file-code');
+        item.iconPath = new vscode.ThemeIcon('file-code', new vscode.ThemeColor('charts.yellow'));
         item.resourceUri = recipeBadgeUri(r.path, r.appends.length);
         item.command = openCommand(r.path);
         item.contextValue = r.appends.length ? 'recipe.extended' : 'recipe';
@@ -154,7 +154,7 @@ export class RecipesViewProvider implements vscode.TreeDataProvider<Node> {
         item.id = `append:${node.parent ?? 'orphan'}:${a.path}:${this.filterKey()}`;
         item.description = this.layerName(a.layer);
         item.iconPath = node.parent
-          ? new vscode.ThemeIcon('add')
+          ? new vscode.ThemeIcon('add', new vscode.ThemeColor('charts.blue'))
           : new vscode.ThemeIcon('warning', new vscode.ThemeColor('list.warningForeground'));
         item.command = openCommand(a.path);
         item.contextValue = node.parent ? 'append' : 'append.orphan';

@@ -51,12 +51,17 @@ function settingRow(label: string, icon: string, s: ConfSetting | undefined, kin
       : `$(warning) No \`conf/${kind}/${s.value}.conf\` in the loaded layers`,
   );
   md.supportThemeIcons = true;
-  return row(label, s.value, missing ? warningIcon() : new vscode.ThemeIcon(icon), {
-    tooltip: md,
-    // Prefer the machine/distro definition; fall back to where it is set.
-    command: s.definition ? openAt(s.definition) : openAt(s.file, s.line),
-    contextValue: 'setting',
-  });
+  return row(
+    label,
+    s.value,
+    missing ? warningIcon() : new vscode.ThemeIcon(icon, new vscode.ThemeColor('charts.blue')),
+    {
+      tooltip: md,
+      // Prefer the machine/distro definition; fall back to where it is set.
+      command: s.definition ? openAt(s.definition) : openAt(s.file, s.line),
+      contextValue: 'setting',
+    },
+  );
 }
 
 function diagnosticRow(d: Diagnostic): Node {
@@ -76,13 +81,14 @@ export function projectRows(p: Project): Node[] {
   const rows: Node[] = [];
 
   const src = p.source;
+  const configIcon = new vscode.ThemeIcon('gear', new vscode.ThemeColor('charts.orange'));
   rows.push(
     src.file
-      ? row('Config', vscode.workspace.asRelativePath(src.file), new vscode.ThemeIcon('gear'), {
+      ? row('Config', vscode.workspace.asRelativePath(src.file), configIcon, {
           tooltip: `${src.kind === 'kas' ? 'kas file' : 'bblayers.conf'}: ${src.file}`,
           command: openAt(src.file),
         })
-      : row('Config', 'workspace scan', new vscode.ThemeIcon('gear'), {
+      : row('Config', 'workspace scan', configIcon, {
           tooltip:
             'No bblayers.conf or kas file found: layers were inferred from a workspace scan.',
         }),
