@@ -22,6 +22,9 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.D
   private readyWaiters: (() => void)[] = [];
   private readonly disposables: vscode.Disposable[] = [];
   private readonly filterEmitter = new vscode.EventEmitter<RecipeFilter>();
+  private readonly recipeEmitter = new vscode.EventEmitter<string>();
+  /** Fired when a recipe row is clicked (after the file is opened). */
+  readonly onDidOpenRecipe = this.recipeEmitter.event;
   /** Fired when the user changes a filter or chip in the webview. */
   readonly onDidChangeFilter = this.filterEmitter.event;
 
@@ -89,6 +92,14 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.D
         void vscode.commands.executeCommand('vscode.open', vscode.Uri.file(msg.file), options);
         break;
       }
+      case 'openRecipe':
+        void vscode.commands
+          .executeCommand('vscode.open', vscode.Uri.file(msg.file), {
+            preview: true,
+            viewColumn: vscode.ViewColumn.One,
+          })
+          .then(() => this.recipeEmitter.fire(msg.file));
+        break;
       case 'reveal':
         void vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(msg.file));
         break;
@@ -137,6 +148,7 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.D
 
   dispose(): void {
     this.filterEmitter.dispose();
+    this.recipeEmitter.dispose();
     this.disposables.forEach((d) => d.dispose());
   }
 }

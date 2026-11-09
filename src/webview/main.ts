@@ -21,6 +21,8 @@ export type ToHost =
   | { type: 'ready' }
   | { type: 'open'; file: string; line?: number }
   | { type: 'reveal'; file: string }
+  /** A recipe row was clicked: open it and maybe its overlay chain. */
+  | { type: 'openRecipe'; file: string }
   | { type: 'state'; filter: RecipeFilter };
 
 /** Messages received from the extension. */
@@ -147,6 +149,8 @@ document.addEventListener('click', (e) => {
   const onTwisty = !!target.closest('.twisty');
   if (el.dataset.toggle && (onTwisty || !el.dataset.file)) {
     toggle(el.dataset.toggle);
+  } else if (el.dataset.file && el.dataset.recipe) {
+    vscode.postMessage({ type: 'openRecipe', file: el.dataset.file });
   } else if (el.dataset.file) {
     vscode.postMessage({
       type: 'open',

@@ -28,6 +28,7 @@ suite('meta-lens smoke test (bsp-custom)', () => {
     for (const c of [
       'meta-lens.refresh',
       'meta-lens.open',
+      'meta-lens.showOverlayChain',
       'meta-lens.filterRecipes',
       'meta-lens.filterAppends',
       'meta-lens.showAllRecipes',
@@ -87,5 +88,14 @@ suite('meta-lens smoke test (bsp-custom)', () => {
     await until(() => api.getRecipeFilter().scope === 'all', 'show all');
     await vscode.commands.executeCommand('meta-lens.showProjectRecipes');
     await until(() => api.getRecipeFilter().scope === 'project', 'project only');
+  });
+
+  test('overlay chain panel opens for busybox', async () => {
+    const busybox = api.getProjects()[0]!.recipes.find((r) => r.pn === 'busybox')!;
+    await vscode.commands.executeCommand(
+      'meta-lens.showOverlayChain',
+      vscode.Uri.file(busybox.path),
+    );
+    await until(() => api.isChainOpen(), 'chain panel');
   });
 });

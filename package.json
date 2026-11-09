@@ -101,6 +101,12 @@
         "title": "Show Project Recipes Only",
         "category": "meta-lens",
         "icon": "$(home)"
+      },
+      {
+        "command": "meta-lens.showOverlayChain",
+        "title": "Show Overlay Chain",
+        "category": "meta-lens",
+        "icon": "$(git-merge)"
       }
     ],
     "menus": {
@@ -121,6 +127,17 @@
           "command": "meta-lens.open",
           "when": "metaLens.hasProject && config.metaLens.showEditorButton",
           "group": "navigation@100"
+        },
+        {
+          "command": "meta-lens.showOverlayChain",
+          "when": "resourceExtname == .bb || resourceExtname == .bbappend",
+          "group": "navigation@101"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "meta-lens.showOverlayChain",
+          "when": "resourceExtname == .bb || resourceExtname == .bbappend"
         }
       ]
     },

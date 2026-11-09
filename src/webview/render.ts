@@ -190,7 +190,7 @@ function recipeRow(r: Recipe, m: SidebarModel, state: UiState): string {
     (r.appends.length ? `<span class="pill pill-blue">+${r.appends.length}</span>` : '');
   const html =
     `<div class="row recipe clickable${loses ? ' shadowed' : ''}" tabindex="-1" role="treeitem" style="--depth:1"` +
-    `${hasChildren ? ` data-toggle="${esc(key)}" aria-expanded="${open}"` : ''}${openAttrs({ file: r.path })}${titleAttr(titleLines.join('\n'))}>` +
+    `${hasChildren ? ` data-toggle="${esc(key)}" aria-expanded="${open}"` : ''}${openAttrs({ file: r.path })} data-recipe="1"${titleAttr(titleLines.join('\n'))}>` +
     (hasChildren ? twisty(open) : '<span class="twisty-space"></span>') +
     icon(r.image ? 'file-media' : 'file-code', 'tone-yellow') +
     `<span class="name">${esc(r.pn)}</span>` +

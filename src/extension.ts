@@ -3,6 +3,8 @@ import type { Diagnostic, Project } from './core/model';
 import { loadProject } from './core/project';
 import type { RecipeFilter } from './core/recipeTree';
 import { buildSidebarModel } from './core/sidebarModel';
+import { buildOverlayChain } from './core/overlayChain';
+import { ChainPanel } from './views/chainPanel';
 import { SIDEBAR_LEFT_VIEW_ID, SIDEBAR_VIEW_ID, SidebarViewProvider } from './views/sidebarView';
 
 /** Public API returned by activate(), used by integration tests. */
@@ -13,6 +15,8 @@ export interface MetaLensApi {
   sidebarReady(): Promise<void>;
   /** Recipe filter as last reported by the webview. */
   getRecipeFilter(): RecipeFilter;
+  /** Whether the OVERLAY CHAIN panel is open. */
+  isChainOpen(): boolean;
 }
 
 /** Any change to these files triggers a rescan (debounced). */
@@ -54,6 +58,31 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
   void applyLocation();
 
   let projects: Project[] = [];
+
+  // OVERLAY CHAIN panel
+  const chainPanel = new ChainPanel(context.extensionUri);
+  context.subscriptions.push(chainPanel);
+  const showChain = async (recipePath: string, force: boolean): Promise<boolean> => {
+    const project = projects.find((p) => p.recipes.some((r) => r.path === recipePath));
+    const recipe = project?.recipes.find((r) => r.path === recipePath);
+    if (!project || !recipe) return false;
+    // Open automatically only when there is something to show, or when the panel is already open.
+    if (!force && !chainPanel.isOpen && recipe.appends.length === 0 && !recipe.overlay)
+      return false;
+    const chain = await buildOverlayChain(project, recipePath);
+    if (chain) chainPanel.show(chain);
+    return !!chain;
+  };
+  sidebar.onDidOpenRecipe((file) => void showChain(file, false));
+  /** Recipe for a .bb or .bbappend path. */
+  const recipeFor = (file: string): string | undefined => {
+    for (const p of projects) {
+      if (p.recipes.some((r) => r.path === file)) return file;
+      const a = p.appends.find((x) => x.path === file);
+      if (a?.recipes[0]) return a.recipes[0];
+    }
+    return undefined;
+  };
   let generation = 0;
 
   const logDiag = (d: Diagnostic) => {
@@ -126,6 +155,15 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('meta-lens.refresh', () => refresh()),
+    vscode.commands.registerCommand('meta-lens.showOverlayChain', async (uri?: vscode.Uri) => {
+      const file = uri?.fsPath ?? vscode.window.activeTextEditor?.document.uri.fsPath;
+      const recipe = file ? recipeFor(file) : undefined;
+      if (!recipe || !(await showChain(recipe, true))) {
+        void vscode.window.showInformationMessage(
+          'meta-lens: open a .bb or .bbappend file indexed by meta-lens to see its overlay chain.',
+        );
+      }
+    }),
     vscode.commands.registerCommand('meta-lens.open', () =>
       vscode.commands.executeCommand(
         `${useLeftSidebar() ? SIDEBAR_LEFT_VIEW_ID : SIDEBAR_VIEW_ID}.focus`,
@@ -160,6 +198,7 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     },
     sidebarReady: () => ready,
     getRecipeFilter: () => sidebar.getFilter(),
+    isChainOpen: () => chainPanel.isOpen,
   };
 }
 

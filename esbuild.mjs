@@ -16,6 +16,7 @@ mkdirSync('dist/codicons', { recursive: true });
 cpSync('node_modules/@vscode/codicons/dist/codicon.css', 'dist/codicons/codicon.css');
 cpSync('node_modules/@vscode/codicons/dist/codicon.ttf', 'dist/codicons/codicon.ttf');
 cpSync('src/webview/style.css', 'dist/webview.css');
+cpSync('src/webview/chain.css', 'dist/chain.css');
 
 const contexts = await Promise.all([
   esbuild.context({
