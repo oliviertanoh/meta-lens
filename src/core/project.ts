@@ -25,6 +25,7 @@ import {
   BbfilesMatcher,
   effectiveBbfiles,
   indexLayerFiles,
+  isImageRecipe,
   scanLayerFiles,
   type LayerFiles,
 } from './recipes';
@@ -171,6 +172,9 @@ function buildIndex(loaded: LoadedLayer[]) {
 
   const match = matchAppends(recipeFiles, appendFiles, ranks);
   markOverlays(match.recipes, ranks);
+  for (const r of match.recipes) {
+    if (isImageRecipe(path.relative(r.layer, r.path), r.pn)) r.image = true;
+  }
   for (const layer of layers) layer.diagnostics.push(...(match.diagnostics.get(layer.path) ?? []));
 
   const recipes = match.recipes.sort(

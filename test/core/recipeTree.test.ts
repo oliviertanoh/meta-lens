@@ -18,12 +18,13 @@ describe('buildRecipeTree (bsp-custom)', () => {
     expect(shape(t)).toEqual([
       ['recipes-acme', ['acme-app', 'acme-extra']],
       ['recipes-connectivity', ['openssh', 'openssh']],
-      ['recipes-core', ['base-files', 'busybox']],
+      ['recipes-core', ['base-files', 'busybox', 'core-image-minimal']],
       ['recipes-graphics', ['fb-demo']],
+      ['recipes-images', ['acme-image']],
       ['recipes-support', ['htop']],
     ]);
-    expect(t.total).toBe(8);
-    expect(t.shown).toBe(8);
+    expect(t.total).toBe(10);
+    expect(t.shown).toBe(10);
     expect(t.orphans.map((a) => a.fileName)).toEqual(['psplash_1.2.bbappend']);
   });
 
@@ -69,10 +70,11 @@ describe('buildRecipeTree projectOnly (bsp-custom)', () => {
       'openssh@meta-acme', // created (overlays meta's openssh)
       'base-files@meta', // extended by meta-acme-bsp
       'busybox@meta', // extended by meta-acme-bsp and meta-acme
+      'acme-image@meta-acme', // created
       'htop@meta-oe', // extended by meta-acme-bsp (dynamic layer)
     ]);
-    expect(t.shown).toBe(5);
-    expect(t.total).toBe(8);
+    expect(t.shown).toBe(6);
+    expect(t.total).toBe(10);
     expect(t.noProjectLayer).toBe(false);
     expect(t.orphans.map((a) => a.fileName)).toEqual(['psplash_1.2.bbappend']);
   });
@@ -94,7 +96,7 @@ describe('buildRecipeTree projectOnly (bsp-custom)', () => {
 
   it('falls back to every recipe when there is no project layer', () => {
     const t = buildRecipeTree(p.recipes, p.appends, { projectOnly: true }, new Set());
-    expect(t.shown).toBe(8);
+    expect(t.shown).toBe(10);
     expect(t.noProjectLayer).toBe(true);
   });
 

@@ -30,6 +30,22 @@ export function categoryOf(relPath: string): string {
   return dirs.find((d) => d.startsWith('recipes-')) ?? dirs[0] ?? '';
 }
 
+/**
+ * Image recipe guess from the path only (no parse): the file sits in an
+ * `images/` folder (the OE convention), or the PN has "image" as a whole
+ * dash-separated word and is not a library (libsdl-image, xcb-util-image).
+ */
+export function isImageRecipe(relPath: string, pn: string): boolean {
+  if (
+    relPath
+      .split(/[\\/]+/)
+      .slice(0, -1)
+      .includes('images')
+  )
+    return true;
+  return /(^|-)image(-|$)/.test(pn) && !/^(lib|xcb-|packagegroup-)/.test(pn);
+}
+
 // ---------------------------------------------------------------------------
 // BBFILES patterns (Python glob semantics: `*` and `?` never match `/`)
 

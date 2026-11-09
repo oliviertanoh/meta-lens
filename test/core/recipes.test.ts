@@ -4,6 +4,7 @@ import {
   categoryOf,
   effectiveBbfiles,
   globToRegExp,
+  isImageRecipe,
   indexLayerFiles,
   parseRecipeName,
   scanLayerFiles,
@@ -34,6 +35,23 @@ describe('categoryOf', () => {
     expect(categoryOf('dynamic-layers/acme/recipes-acme/x/x_1.bb')).toBe('recipes-acme');
     expect(categoryOf('images/my-image.bb')).toBe('images');
     expect(categoryOf('top.bb')).toBe('');
+  });
+});
+
+describe('isImageRecipe', () => {
+  it.each([
+    ['recipes-core/images/core-image-minimal.bb', 'core-image-minimal', true],
+    ['recipes-core/images/rpi-test-image.bb', 'rpi-test-image', true],
+    ['recipes-x/foo/my-image.bb', 'my-image', true],
+    ['images/factory.bb', 'factory', true],
+    ['recipes-graphics/imagemagick/imagemagick_7.bb', 'imagemagick', false],
+    ['recipes-core/packagegroups/packagegroup-image-x.bb', 'packagegroup-image-x', false],
+    ['recipes-bsp/u-boot/u-boot_2024.bb', 'u-boot', false],
+    ['recipes-graphics/libsdl/libsdl2-image_2.0.5.bb', 'libsdl2-image', false],
+    ['recipes-graphics/xorg-lib/xcb-util-image_0.4.1.bb', 'xcb-util-image', false],
+    ['recipes-core/ovmf/ovmf-shell-image.bb', 'ovmf-shell-image', true],
+  ])('%s', (rel, pn, expected) => {
+    expect(isImageRecipe(rel, pn)).toBe(expected);
   });
 });
 

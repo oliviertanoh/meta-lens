@@ -32,14 +32,14 @@ describe('loadProject', () => {
   it('bsp-custom: relocation, missing layer and missing LAYERDEPENDS', async () => {
     const p = await loadProject(fixture('bsp-custom'));
     expect(p.layers.map(summary)).toEqual([
-      { name: 'meta', priority: 5, recipes: 3, warnings: 0 },
+      { name: 'meta', priority: 5, recipes: 4, warnings: 0 },
       { name: 'meta-poky', priority: 5, recipes: 0, warnings: 0 },
       { name: 'meta-acme-bsp', priority: 10, recipes: 0, warnings: 0 },
       // htop + acme-extra (BBFILES_DYNAMIC acme) + fb-demo (!qt6-layer); qt-demo is ignored.
       { name: 'meta-oe', priority: 6, recipes: 3, warnings: 0 },
       { name: 'meta-qt6', priority: undefined, recipes: 0, warnings: 1 },
       // missing qt6-layer dependency + orphan psplash bbappend
-      { name: 'meta-acme', priority: 10, recipes: 2, warnings: 2 },
+      { name: 'meta-acme', priority: 10, recipes: 3, warnings: 2 },
     ]);
 
     const oe = p.layers[3];
@@ -139,7 +139,9 @@ describe('loadProject', () => {
         'recipes-connectivity/openssh@9.6p1',
         'recipes-core/base-files@3.0.14',
         'recipes-core/busybox@1.36.1',
+        'recipes-core/core-image-minimal@undefined',
         'recipes-graphics/fb-demo@1.0',
+        'recipes-images/acme-image@undefined',
         'recipes-support/htop@3.3.0',
       ]);
       expect(recipe('busybox')?.layer).toBe(src('poky', 'meta'));
@@ -189,6 +191,13 @@ describe('loadProject', () => {
       expect(acme?.diagnostics.find((d) => d.severity === 'info')?.message).toBe(
         `1 .bb/.bbappend file(s) not matched by BBFILES are ignored, e.g. ${path.join('scripts', 'legacy', 'legacy-tool_1.0.bb')}.`,
       );
+    });
+
+    it('flags image recipes', () => {
+      expect(p.recipes.filter((r) => r.image).map((r) => r.pn)).toEqual([
+        'core-image-minimal',
+        'acme-image',
+      ]);
     });
 
     it('indexes .inc files without parsing them', () => {
