@@ -59,7 +59,6 @@ export function sectionHeader(key: string, label: string, count: string, open: b
 
 function projectRow(r: ProjectRowVM): string {
   const value =
-    (r.dot ? '<span class="dot"></span>' : '') +
     `<span class="value${r.tone ? ` tone-${r.tone}` : ''}">${esc(r.value)}</span>` +
     (r.warning ? icon('warning', 'warn') : '');
   const clickable = r.open ? ' row clickable' : '';
@@ -103,7 +102,7 @@ const rowAction = (l: Link | undefined, name: string, title: string) =>
 
 /** A click on the row shows the layer's recipes; the hover icon opens layer.conf. */
 export function layerRow(l: LayerVM, selected = false): string {
-  const ic = l.severity === 'error' ? icon('error', 'err') : icon('layers', 'tone-purple');
+  const ic = l.severity === 'error' ? icon('error', 'err') : icon('layers');
   const warn = l.severity === 'warning' ? icon('warning', 'warn after-name') : '';
   const prio = `<span class="pill">${l.priority ?? '?'}</span>`;
   return (

@@ -127,9 +127,6 @@ body {
 }
 
 /* Colors */
-.tone-purple {
-  color: var(--vscode-charts-purple);
-}
 .tone-yellow {
   color: var(--vscode-charts-yellow);
 }
@@ -172,20 +169,6 @@ body {
 }
 .kv .warn {
   margin-left: 4px;
-}
-.kv:has(.dot) .value {
-  font-family: var(--vscode-font-family);
-}
-.dot {
-  display: inline-block;
-  width: 8px;
-  height: 8px;
-  margin-right: 6px;
-  border-radius: 50%;
-  background: var(--vscode-testing-iconPassed, var(--vscode-charts-green));
-}
-.kv:has(.dot) {
-  grid-template-columns: 76px auto 1fr;
 }
 .note {
   padding-left: 24px;
@@ -253,7 +236,6 @@ body {
 .empty {
   padding: 4px 8px 4px 24px;
   color: var(--vscode-descriptionForeground);
-  font-style: italic;
   white-space: normal;
 }
 .codicon {

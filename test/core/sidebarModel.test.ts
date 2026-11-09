@@ -16,7 +16,7 @@ describe('buildSidebarModel (bsp-custom)', () => {
     m = buildSidebarModel([p], rel);
   });
 
-  it('project rows: config, local.conf, release, MACHINE, DISTRO, mode', () => {
+  it('project rows: config, local.conf, release, MACHINE, DISTRO', () => {
     expect(m.projects).toHaveLength(1);
     expect(m.projects[0]?.rows.map((r) => [r.key, r.value, r.tone ?? '', !!r.warning])).toEqual([
       ['Config', path.join('build', 'conf', 'bblayers.conf'), 'orange', false],
@@ -24,7 +24,6 @@ describe('buildSidebarModel (bsp-custom)', () => {
       ['Release', 'scarthgap (5.0 LTS)', '', false],
       ['MACHINE', 'acme-rpi4', 'blue', false],
       ['DISTRO', 'acme-distro', 'blue', false],
-      ['Mode', 'Static scan · no bitbake env', '', false],
     ]);
   });
 

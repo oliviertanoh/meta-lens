@@ -26,8 +26,6 @@ export interface ProjectRowVM {
   /** Hover text. */
   title?: string;
   warning?: boolean;
-  /** Green status dot before the value. */
-  dot?: boolean;
 }
 
 export interface NoteVM {
@@ -168,12 +166,6 @@ function projectVM(p: Project, rel: Rel): ProjectVM {
   );
   rows.push(settingRow('MACHINE', p.config.machine, 'machine', rel));
   rows.push(settingRow('DISTRO', p.config.distro, 'distro', rel));
-  rows.push({
-    key: 'Mode',
-    value: 'Static scan · no bitbake env',
-    dot: true,
-    title: 'meta-lens only reads files: no sourced environment, no bitbake run.',
-  });
   return { name: path.basename(p.root), rows, notes: p.diagnostics.map(note) };
 }
 

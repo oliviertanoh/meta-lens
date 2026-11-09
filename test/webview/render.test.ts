@@ -45,20 +45,19 @@ describe('esc', () => {
 describe('renderProject', () => {
   it('shows key/value rows with tones and links', () => {
     const html = renderProject(m);
-    expect(text(html).slice(0, 6)).toEqual([
+    expect(text(html).slice(0, 5)).toEqual([
       `Config ${path.join('build', 'conf', 'bblayers.conf')}`,
       `Local conf ${path.join('build', 'conf', 'local.conf')}`,
       'Release scarthgap (5.0 LTS)',
       'MACHINE acme-rpi4',
       'DISTRO acme-distro',
-      'Mode Static scan · no bitbake env',
     ]);
     expect(html).toContain('tone-orange');
     expect(html).toContain('tone-blue');
     expect(html).toContain(
       `data-file="${esc(fixture('bsp-custom', 'build', 'conf', 'local.conf'))}"`,
     );
-    expect(html).toContain('class="dot"');
+    expect(html).not.toContain('Mode');
   });
 });
 
@@ -76,7 +75,9 @@ describe('renderLayers', () => {
     const acme = layerRow(m.layers[5]!);
     expect(acme).toContain('codicon-warning');
     expect(acme).toContain('<span class="pill">10</span>');
-    expect(layerRow(m.layers[0]!)).toContain('tone-purple');
+    // Layer icons use the theme's icon color; color is kept for warnings and errors.
+    expect(layerRow(m.layers[0]!)).toContain('codicon-layers ');
+    expect(layerRow(m.layers[0]!)).not.toContain('tone-');
   });
 });
 
