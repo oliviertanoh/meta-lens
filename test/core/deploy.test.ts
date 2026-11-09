@@ -3,7 +3,7 @@ import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
 import { findBuiltImages, tmpDirCandidates } from '../../src/core/deploy';
-import { loadProject } from '../../src/core/project';
+import { loadBuiltImages, loadProject } from '../../src/core/project';
 import { fixture } from './helpers';
 
 const deploy = (...p: string[]) => fixture('bsp-custom', 'build', 'tmp', 'deploy', 'images', ...p);
@@ -55,5 +55,15 @@ describe('built images in the project', () => {
       ['acme-image', 'acme-image.bb'],
       ['core-image-minimal', 'core-image-minimal.bb'],
     ]);
+  });
+
+  it('loadBuiltImages recomputes only the images, same result as a full load', async () => {
+    const p = await loadProject(fixture('bsp-custom'));
+    expect(await loadBuiltImages(p)).toEqual(p.builtImages);
+  });
+
+  it('no build directory for a plain scan', async () => {
+    const p = await loadProject(fixture('bsp-custom', 'sources'));
+    expect(await loadBuiltImages(p)).toEqual([]);
   });
 });

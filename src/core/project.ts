@@ -8,6 +8,7 @@ import { readConfVars, readKasVars, type ConfFile } from './confVars';
 import { discover, type DiscoveryOptions } from './discovery';
 import { parseLayerConf } from './layerConf';
 import type {
+  BuiltImage,
   ConfigSource,
   ConfSetting,
   ConfValue,
@@ -308,6 +309,31 @@ async function findInactive(found: string[], active: readonly Layer[]): Promise<
   );
 }
 
+/**
+ * Images in the build directory (next to bblayers.conf, or kas' build/), each
+ * linked to its recipe. Cheap: a few directory listings. Exported so the
+ * extension can refresh just this after a build, without a full rescan.
+ */
+export async function loadBuiltImages(
+  p: Pick<Project, 'root' | 'source' | 'config' | 'recipes'>,
+): Promise<BuiltImage[]> {
+  const topdir =
+    p.source.kind === 'bblayers' && p.source.file
+      ? path.dirname(path.dirname(p.source.file))
+      : p.source.kind === 'kas'
+        ? path.join(p.root, 'build')
+        : undefined;
+  if (!topdir) return [];
+  const images = await findBuiltImages(await tmpDirCandidates(topdir, p.config.confFiles));
+  for (const img of images) {
+    const r = p.recipes.find(
+      (x) => x.pn === img.name && (!x.overlay || x.overlay.winner === x.path),
+    );
+    if (r) img.recipe = r.path;
+  }
+  return images;
+}
+
 export interface LoadOptions extends DiscoveryOptions {
   /** Force a specific bblayers.conf instead of the shallowest one found. */
   bblayersFile?: string;
@@ -394,22 +420,7 @@ export async function loadProject(root: string, opts: LoadOptions = {}): Promise
   for (const l of layers) l.origin = origins.get(l.path) ?? l.origin;
   const index = buildIndex(loaded);
   const config = await loadConfig(source, layers, diagnostics);
-  // Build directory: next to bblayers.conf, or kas' default build/ folder.
-  const topdir =
-    source.kind === 'bblayers' && source.file
-      ? path.dirname(path.dirname(source.file))
-      : source.kind === 'kas'
-        ? path.join(root, 'build')
-        : undefined;
-  const builtImages = topdir
-    ? await findBuiltImages(await tmpDirCandidates(topdir, config.confFiles))
-    : [];
-  for (const img of builtImages) {
-    const r = index.recipes.find(
-      (x) => x.pn === img.name && (!x.overlay || x.overlay.winner === x.path),
-    );
-    if (r) img.recipe = r.path;
-  }
+  const builtImages = await loadBuiltImages({ root, source, config, recipes: index.recipes });
   const inactiveLayers =
     source.kind === 'bblayers' ? await findInactive(found.layerDirs, layers) : [];
 
