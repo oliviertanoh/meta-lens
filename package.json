@@ -5,6 +5,7 @@
   "version": "0.0.1",
   "publisher": "oliviertanoh",
   "license": "MIT",
+  "icon": "media/icon.png",
   "engines": {
     "vscode": "^1.90.0",
     "node": ">=20"
@@ -33,7 +34,7 @@
         {
           "id": "metaLens",
           "title": "meta-lens",
-          "icon": "$(layers)"
+          "icon": "media/activitybar.svg"
         }
       ]
     },
