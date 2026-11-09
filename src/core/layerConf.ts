@@ -1,8 +1,15 @@
 // Parse a layer's conf/layer.conf.
 
 import * as path from 'node:path';
-import { evaluate, parseAssignments, splitList, type VarStore } from './bbvars';
-import type { Diagnostic, LayerDependency } from './model';
+import {
+  evaluate,
+  expand,
+  parseAssignments,
+  splitList,
+  stripInlinePython,
+  type VarStore,
+} from './bbvars';
+import type { Diagnostic, DynamicBbfiles, LayerDependency } from './model';
 
 export interface CollectionInfo {
   name: string;
@@ -18,8 +25,17 @@ export interface LayerConfInfo {
   layerDir: string;
   collections: CollectionInfo[];
   bbfiles: string[];
+  bbfilesDynamic: DynamicBbfiles[];
+  bbfilesPerCollection: string[];
   diagnostics: Diagnostic[];
 }
+
+/**
+ * `${@' '.join('<template>' % x for x in BBFILE_COLLECTIONS.split())}`: one
+ * BBFILES pattern per loaded collection (idiom used by meta-raspberrypi).
+ */
+const PER_COLLECTION_RE =
+  /\$\{@\s*(['"])\s*\1\s*\.join\(\s*(['"])(.*?)\2\s*%\s*(\w+)\s+for\s+\4\s+in\s+(?:BBFILE_COLLECTIONS|d\.getVar\(\s*['"]BBFILE_COLLECTIONS['"]\s*\))\.split\(\)\s*\)\s*\}/g;
 
 /** Read `NAME_<collection>`, falling back to the override form `NAME:<collection>`. */
 function collVar(store: VarStore, base: string, coll: string) {
@@ -104,7 +120,50 @@ export function parseLayerConf(text: string, file: string): LayerConfInfo {
     return info;
   });
 
-  const bbfiles = splitList(store.get('BBFILES')?.value ?? '');
+  // BBFILES: handle the per-collection idiom, then drop any other inline Python.
+  const bbfilesPerCollection: string[] = [];
+  const rawBbfiles = (store.raw('BBFILES') ?? '').replace(PER_COLLECTION_RE, (_m, _q, _q2, tpl) => {
+    bbfilesPerCollection.push(expand(tpl as string, store.lookup).value);
+    return ' ';
+  });
+  const stripped = stripInlinePython(expand(rawBbfiles, store.lookup).value);
+  const bbfiles = splitList(stripped.value).filter((p) => !p.includes('${'));
+  if (stripped.removed.length > 0) {
+    diagnostics.push({
+      severity: 'warning',
+      message: `BBFILES uses inline Python that meta-lens cannot evaluate (${stripped.removed[0]}); some recipes of this layer may be missing.`,
+      file,
+      line: store.lineOf('BBFILES'),
+    });
+  }
 
-  return { file, layerDir, collections, bbfiles, diagnostics };
+  const bbfilesDynamic: DynamicBbfiles[] = [];
+  for (const entry of splitList(store.get('BBFILES_DYNAMIC')?.value ?? '')) {
+    const colon = entry.indexOf(':');
+    if (colon <= 0) {
+      diagnostics.push({
+        severity: 'warning',
+        message: `BBFILES_DYNAMIC entry must be "{!}<collection>:<pattern>", not "${entry}".`,
+        file,
+        line: store.lineOf('BBFILES_DYNAMIC'),
+      });
+      continue;
+    }
+    const negate = entry.startsWith('!');
+    bbfilesDynamic.push({
+      collection: entry.slice(negate ? 1 : 0, colon),
+      negate,
+      pattern: entry.slice(colon + 1),
+    });
+  }
+
+  return {
+    file,
+    layerDir,
+    collections,
+    bbfiles,
+    bbfilesDynamic,
+    bbfilesPerCollection,
+    diagnostics,
+  };
 }

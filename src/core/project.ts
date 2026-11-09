@@ -3,9 +3,17 @@
 import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { parseBblayers, type BblayersEntry } from './bblayers';
-import { countRecipes, discover, type DiscoveryOptions } from './discovery';
+import { matchAppends, type LayerRank } from './appendMatch';
+import { discover, type DiscoveryOptions } from './discovery';
 import { parseLayerConf } from './layerConf';
-import type { ConfigSource, Diagnostic, Layer, Project } from './model';
+import type { ConfigSource, Diagnostic, IncludeFile, Layer, Project, RecipeFile } from './model';
+import {
+  BbfilesMatcher,
+  effectiveBbfiles,
+  indexLayerFiles,
+  scanLayerFiles,
+  type LayerFiles,
+} from './recipes';
 
 async function isDir(p: string): Promise<boolean> {
   try {
@@ -47,17 +55,30 @@ async function relocate(
   return undefined;
 }
 
-async function loadLayer(dir: string, excludeDirs: string[] | undefined): Promise<Layer> {
-  const layer: Layer = {
-    name: path.basename(dir),
+function emptyLayer(name: string, dir: string): Layer {
+  return {
+    name,
     path: dir,
     collections: [],
     depends: [],
     seriesCompat: [],
     bbfiles: [],
+    bbfilesDynamic: [],
+    bbfilesPerCollection: [],
     recipeCount: 0,
+    appendCount: 0,
     diagnostics: [],
   };
+}
+
+interface LoadedLayer {
+  layer: Layer;
+  files: LayerFiles;
+}
+
+async function loadLayer(dir: string, excludeDirs: string[] | undefined): Promise<LoadedLayer> {
+  const layer = emptyLayer(path.basename(dir), dir);
+  const files = await scanLayerFiles(dir, excludeDirs);
   const confFile = path.join(dir, 'conf', 'layer.conf');
   let text: string;
   try {
@@ -67,7 +88,7 @@ async function loadLayer(dir: string, excludeDirs: string[] | undefined): Promis
       severity: 'warning',
       message: 'conf/layer.conf not found: this directory is not a valid layer.',
     });
-    return layer;
+    return { layer, files };
   }
   layer.layerConf = confFile;
   const info = parseLayerConf(text, confFile);
@@ -78,29 +99,71 @@ async function loadLayer(dir: string, excludeDirs: string[] | undefined): Promis
   );
   layer.seriesCompat = [...new Set(info.collections.flatMap((c) => c.seriesCompat))];
   layer.bbfiles = info.bbfiles;
+  layer.bbfilesDynamic = info.bbfilesDynamic;
+  layer.bbfilesPerCollection = info.bbfilesPerCollection;
   layer.diagnostics.push(...info.diagnostics);
-  layer.recipeCount = await countRecipes(dir, excludeDirs);
-  return layer;
+  return { layer, files };
 }
 
 function missingLayer(entry: BblayersEntry, file: string): Layer {
   const shown = entry.path ?? entry.expanded;
-  return {
-    name: path.basename(shown) || entry.raw,
-    path: shown,
-    collections: [],
-    depends: [],
-    seriesCompat: [],
-    bbfiles: [],
-    recipeCount: 0,
-    diagnostics: [
-      {
-        severity: 'error',
-        message: `Layer listed in BBLAYERS not found: ${entry.raw}`,
-        file,
-      },
-    ],
-  };
+  const layer = emptyLayer(path.basename(shown) || entry.raw, shown);
+  layer.diagnostics.push({
+    severity: 'error',
+    message: `Layer listed in BBLAYERS not found: ${entry.raw}`,
+    file,
+  });
+  return layer;
+}
+
+/**
+ * Build the recipe / append index of the loaded layers: apply BBFILES (and
+ * the enabled BBFILES_DYNAMIC entries), then match appends to recipes.
+ */
+function buildIndex(loaded: LoadedLayer[]) {
+  const layers = loaded.map((l) => l.layer);
+  const collections = new Set(layers.flatMap((l) => l.collections));
+  const matcher = new BbfilesMatcher(effectiveBbfiles(layers, collections));
+
+  const recipeFiles: RecipeFile[] = [];
+  const appendFiles: (RecipeFile & { wildcard: boolean })[] = [];
+  const includes: IncludeFile[] = [];
+  const ranks = new Map<string, LayerRank>();
+
+  loaded.forEach(({ layer, files }, index) => {
+    ranks.set(layer.path, { priority: layer.priority ?? 0, index });
+    const idx = indexLayerFiles(layer.path, files, matcher);
+    recipeFiles.push(...idx.recipes);
+    appendFiles.push(...idx.appends);
+    includes.push(...idx.includes);
+    layer.recipeCount = idx.recipes.length;
+    layer.appendCount = idx.appends.length;
+    if (idx.ignored.length > 0) {
+      layer.diagnostics.push({
+        severity: 'info',
+        message: `${idx.ignored.length} .bb/.bbappend file(s) not matched by BBFILES are ignored, e.g. ${path.relative(layer.path, idx.ignored[0] as string)}.`,
+        file: layer.layerConf,
+      });
+    }
+    for (const f of idx.badNames) {
+      layer.diagnostics.push({
+        severity: 'warning',
+        message: `Too many underscores in ${path.basename(f)}: BitBake cannot derive PN/PV from it.`,
+        file: f,
+      });
+    }
+  });
+
+  const match = matchAppends(recipeFiles, appendFiles, ranks);
+  for (const layer of layers) layer.diagnostics.push(...(match.diagnostics.get(layer.path) ?? []));
+
+  const recipes = match.recipes.sort(
+    (a, b) =>
+      a.category.localeCompare(b.category) ||
+      a.pn.localeCompare(b.pn) ||
+      a.path.localeCompare(b.path),
+  );
+  return { recipes, appends: match.appends, includes };
 }
 
 /** Cross-layer checks: missing LAYERDEPENDS collections, duplicate collection names. */
@@ -207,12 +270,16 @@ export async function loadProject(root: string, opts: LoadOptions = {}): Promise
     return true;
   });
 
-  const layers = await Promise.all(
+  const loaded = await Promise.all(
     unique.map((d) =>
-      typeof d === 'string' ? loadLayer(d, opts.excludeDirs) : Promise.resolve(d),
+      typeof d === 'string'
+        ? loadLayer(d, opts.excludeDirs)
+        : Promise.resolve({ layer: d, files: { bb: [], bbappend: [], inc: [] } }),
     ),
   );
+  const layers = loaded.map((l) => l.layer);
   checkLayers(layers);
+  const index = buildIndex(loaded);
 
   return {
     root,
@@ -220,6 +287,7 @@ export async function loadProject(root: string, opts: LoadOptions = {}): Promise
     bblayersFiles: found.bblayersFiles,
     kasFiles: found.kasFiles,
     layers,
+    ...index,
     diagnostics,
   };
 }

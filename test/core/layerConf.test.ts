@@ -64,6 +64,52 @@ describe('parseLayerConf', () => {
     expect(r.diagnostics[0]).toMatchObject({ severity: 'warning', line: 2 });
   });
 
+  it('reads BBFILES_DYNAMIC entries, including negated ones', () => {
+    const r = load('bsp-custom', 'sources', 'meta-openembedded', 'meta-oe');
+    const dir = fixture('bsp-custom', 'sources', 'meta-openembedded', 'meta-oe');
+    expect(r.bbfilesDynamic).toEqual([
+      { collection: 'acme', negate: false, pattern: `${dir}/dynamic-layers/acme/*/*/*.bb` },
+      {
+        collection: 'qt6-layer',
+        negate: false,
+        pattern: `${dir}/dynamic-layers/qt6-layer/*/*/*.bb`,
+      },
+      { collection: 'qt6-layer', negate: true, pattern: `${dir}/dynamic-layers/no-qt6/*/*/*.bb` },
+    ]);
+  });
+
+  it('understands the per-collection BBFILES idiom (meta-raspberrypi)', () => {
+    const r = load('bsp-custom', 'sources', 'meta-acme-bsp');
+    const dir = fixture('bsp-custom', 'sources', 'meta-acme-bsp');
+    expect(r.bbfilesPerCollection).toEqual([
+      `${dir}/dynamic-layers/%s/recipes*/*/*.bbappend`,
+      `${dir}/dynamic-layers/%s/recipes*/*/*.bb`,
+    ]);
+    expect(r.bbfiles).toEqual([`${dir}/recipes-*/*/*.bb`, `${dir}/recipes-*/*/*.bbappend`]);
+    expect(r.diagnostics).toEqual([]);
+  });
+
+  it('drops other inline Python from BBFILES and warns', () => {
+    const r = parseLayerConf(
+      [
+        'BBFILE_COLLECTIONS += "x"',
+        'BBFILE_PRIORITY_x = "1"',
+        'LAYERSERIES_COMPAT_x = "scarthgap"',
+        "BBFILES += \"${LAYERDIR}/a/*.bb ${@bb.utils.contains('X', 'y', '${LAYERDIR}/b/*.bb', '', d)}\"",
+      ].join('\n'),
+      '/l/conf/layer.conf',
+    );
+    expect(r.bbfiles).toEqual(['/l/a/*.bb']);
+    expect(r.diagnostics).toHaveLength(1);
+    expect(r.diagnostics[0]).toMatchObject({ severity: 'warning', line: 4 });
+  });
+
+  it('flags malformed BBFILES_DYNAMIC entries', () => {
+    const r = parseLayerConf('BBFILES_DYNAMIC = "/no/collection/*.bb"', '/l/conf/layer.conf');
+    expect(r.bbfilesDynamic).toEqual([]);
+    expect(r.diagnostics.some((d) => d.message.includes('BBFILES_DYNAMIC'))).toBe(true);
+  });
+
   it('supports several collections in one layer', () => {
     const r = parseLayerConf(
       'BBFILE_COLLECTIONS += "a"\nBBFILE_COLLECTIONS += "b"\nBBFILE_PRIORITY_a = "1"\nBBFILE_PRIORITY_b = "2"',

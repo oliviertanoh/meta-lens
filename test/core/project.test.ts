@@ -2,7 +2,7 @@ import { promises as fs } from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
 import { describe, expect, it } from 'vitest';
-import type { Layer } from '../../src/core/model';
+import type { Layer, Project } from '../../src/core/model';
 import { loadProject } from '../../src/core/project';
 import { fixture } from './helpers';
 
@@ -32,12 +32,14 @@ describe('loadProject', () => {
   it('bsp-custom: relocation, missing layer and missing LAYERDEPENDS', async () => {
     const p = await loadProject(fixture('bsp-custom'));
     expect(p.layers.map(summary)).toEqual([
-      { name: 'meta', priority: 5, recipes: 2, warnings: 0 },
+      { name: 'meta', priority: 5, recipes: 3, warnings: 0 },
       { name: 'meta-poky', priority: 5, recipes: 0, warnings: 0 },
       { name: 'meta-acme-bsp', priority: 10, recipes: 0, warnings: 0 },
-      { name: 'meta-oe', priority: 6, recipes: 1, warnings: 0 },
+      // htop + acme-extra (BBFILES_DYNAMIC acme) + fb-demo (!qt6-layer); qt-demo is ignored.
+      { name: 'meta-oe', priority: 6, recipes: 3, warnings: 0 },
       { name: 'meta-qt6', priority: undefined, recipes: 0, warnings: 1 },
-      { name: 'meta-acme', priority: 10, recipes: 2, warnings: 1 },
+      // missing qt6-layer dependency + orphan psplash bbappend
+      { name: 'meta-acme', priority: 10, recipes: 2, warnings: 2 },
     ]);
 
     const oe = p.layers[3];
@@ -118,5 +120,79 @@ describe('loadProject', () => {
     } finally {
       await fs.rm(root, { recursive: true, force: true });
     }
+  });
+
+  describe('recipe index (bsp-custom)', () => {
+    let p: Project;
+    const src = (...parts: string[]) => fixture('bsp-custom', 'sources', ...parts);
+    const recipe = (pn: string) => p.recipes.find((r) => r.pn === pn);
+
+    it('loads', async () => {
+      p = await loadProject(fixture('bsp-custom'));
+    });
+
+    it('lists recipes sorted by category then PN, with layer and version', () => {
+      expect(p.recipes.map((r) => `${r.category}/${r.pn}@${r.pv}`)).toEqual([
+        'recipes-acme/acme-app@1.0',
+        'recipes-acme/acme-extra@1.0',
+        'recipes-connectivity/openssh@9.6p1',
+        'recipes-connectivity/openssh@9.6p1',
+        'recipes-core/base-files@3.0.14',
+        'recipes-core/busybox@1.36.1',
+        'recipes-graphics/fb-demo@1.0',
+        'recipes-support/htop@3.3.0',
+      ]);
+      expect(recipe('busybox')?.layer).toBe(src('poky', 'meta'));
+    });
+
+    it('applies busybox appends in priority, then BBLAYERS order', () => {
+      expect(recipe('busybox')?.appends).toEqual([
+        src('meta-acme-bsp', 'recipes-core', 'busybox', 'busybox_%.bbappend'),
+        src('meta-acme', 'recipes-core', 'busybox', 'busybox_%.bbappend'),
+      ]);
+    });
+
+    it('enables dynamic-layers/<collection> for loaded collections only', () => {
+      expect(recipe('htop')?.appends).toEqual([
+        src(
+          'meta-acme-bsp',
+          'dynamic-layers',
+          'openembedded-layer',
+          'recipes-support',
+          'htop',
+          'htop_%.bbappend',
+        ),
+      ]);
+      expect(p.recipes.some((r) => r.pn === 'qt-acme')).toBe(false);
+      expect(p.layers.find((l) => l.name === 'meta-acme-bsp')?.appendCount).toBe(3);
+    });
+
+    it('matches the "3.%" wildcard', () => {
+      expect(recipe('base-files')?.appends).toEqual([
+        src('meta-acme-bsp', 'recipes-core', 'base-files', 'base-files_3.%.bbappend'),
+      ]);
+    });
+
+    it('reports the orphan psplash bbappend on meta-acme', () => {
+      const orphan = p.appends.find((a) => a.pn === 'psplash');
+      expect(orphan?.recipes).toEqual([]);
+      const acme = p.layers.find((l) => l.name === 'meta-acme');
+      expect(acme?.diagnostics.map((d) => d.message)).toContain(
+        'Orphan bbappend: no recipe matches psplash_1.2.bbappend.',
+      );
+      expect(acme?.appendCount).toBe(2);
+    });
+
+    it('ignores files outside BBFILES and says so', () => {
+      expect(p.recipes.some((r) => r.pn === 'legacy-tool' || r.pn === 'qt-demo')).toBe(false);
+      const acme = p.layers.find((l) => l.name === 'meta-acme');
+      expect(acme?.diagnostics.find((d) => d.severity === 'info')?.message).toBe(
+        `1 .bb/.bbappend file(s) not matched by BBFILES are ignored, e.g. ${path.join('scripts', 'legacy', 'legacy-tool_1.0.bb')}.`,
+      );
+    });
+
+    it('indexes .inc files without parsing them', () => {
+      expect(p.includes.map((i) => i.fileName)).toEqual(['busybox.inc']);
+    });
   });
 });

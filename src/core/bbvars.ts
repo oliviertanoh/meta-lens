@@ -359,6 +359,29 @@ export function evaluate(
   };
 }
 
+/** Remove every `${@...}` segment from a value; returns the cleaned value and the removed segments. */
+export function stripInlinePython(value: string): { value: string; removed: string[] } {
+  const removed: string[] = [];
+  let out = '';
+  let i = 0;
+  while (i < value.length) {
+    const at = value.indexOf('${@', i);
+    if (at < 0) {
+      out += value.slice(i);
+      break;
+    }
+    const close = findClose(value, at);
+    if (close < 0) {
+      out += value.slice(i);
+      break;
+    }
+    out += value.slice(i, at) + ' ';
+    removed.push(value.slice(at, close + 1));
+    i = close + 1;
+  }
+  return { value: out, removed };
+}
+
 /** Split a whitespace-separated BitBake list value. */
 export function splitList(value: string): string[] {
   return value.split(/\s+/).filter(Boolean);

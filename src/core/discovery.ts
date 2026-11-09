@@ -156,29 +156,3 @@ export async function discover(
     layerDirs: [...new Set(layerDirs)].sort((a, b) => a.localeCompare(b)),
   };
 }
-
-/**
- * Count `.bb` files under a layer (no parsing). Nested layers and excluded
- * directories are skipped so a recipe is only counted once.
- */
-export async function countRecipes(layerDir: string, excludeDirs: string[] = []): Promise<number> {
-  const excludes = new Set([...DEFAULT_EXCLUDES, ...excludeDirs]);
-  const walk = async (dir: string, isRoot: boolean): Promise<number> => {
-    if (!isRoot && (await isFile(path.join(dir, 'conf', 'layer.conf')))) return 0;
-    const entries = await listDirs(dir);
-    let n = 0;
-    const subs: Promise<number>[] = [];
-    for (const e of entries) {
-      if (e.isDirectory()) {
-        if (!excludes.has(e.name) && !e.name.startsWith('.')) {
-          subs.push(walk(path.join(dir, e.name), false));
-        }
-      } else if (e.isFile() && e.name.endsWith('.bb')) {
-        n++;
-      }
-    }
-    for (const s of await Promise.all(subs)) n += s;
-    return n;
-  };
-  return walk(layerDir, true);
-}

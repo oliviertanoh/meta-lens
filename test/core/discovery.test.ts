@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { countRecipes, discover, isKasFile } from '../../src/core/discovery';
+import { discover, isKasFile } from '../../src/core/discovery';
 import { fixture } from './helpers';
 
 describe('discover', () => {
@@ -58,13 +58,5 @@ describe('isKasFile', () => {
   it('requires a header with a version', async () => {
     expect(await isKasFile(fixture('kas-project', 'kas', 'project.yml'))).toBe(true);
     expect(await isKasFile(fixture('kas-project', 'docker-compose.yml'))).toBe(false);
-  });
-});
-
-describe('countRecipes', () => {
-  it('counts .bb files only (not .inc / .bbappend)', async () => {
-    expect(await countRecipes(fixture('poky-mini', 'meta'))).toBe(2);
-    expect(await countRecipes(fixture('bsp-custom', 'sources', 'meta-acme-bsp'))).toBe(0);
-    expect(await countRecipes(fixture('bsp-custom', 'sources', 'meta-acme'))).toBe(2);
   });
 });
