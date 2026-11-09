@@ -5,11 +5,27 @@ import { renderChain } from '../webview/chainRender';
 /** The OVERLAY CHAIN panel, opened beside the editor and reused for every recipe. */
 export class ChainPanel implements vscode.Disposable {
   private panel: vscode.WebviewPanel | undefined;
+  /** Chain currently displayed. */
+  current: OverlayChain | undefined;
+
+  /** Recipe currently displayed. */
+  get recipe(): string | undefined {
+    return this.current?.recipe.path;
+  }
 
   constructor(private readonly extensionUri: vscode.Uri) {}
 
   get isOpen(): boolean {
     return !!this.panel;
+  }
+
+  /** Re-render in place (after a rescan): no reveal, no focus change. */
+  update(chain: OverlayChain): void {
+    if (!this.panel) return;
+    const dist = vscode.Uri.joinPath(this.extensionUri, 'dist');
+    this.current = chain;
+    this.panel.title = `Overlay chain: ${chain.recipe.pn}`;
+    this.panel.webview.html = this.html(this.panel.webview, dist, chain);
   }
 
   show(chain: OverlayChain): void {
@@ -22,7 +38,10 @@ export class ChainPanel implements vscode.Disposable {
         { enableScripts: true, localResourceRoots: [dist] },
       );
       this.panel.iconPath = vscode.Uri.joinPath(this.extensionUri, 'media', 'logo-color.svg');
-      this.panel.onDidDispose(() => (this.panel = undefined));
+      this.panel.onDidDispose(() => {
+        this.panel = undefined;
+        this.current = undefined;
+      });
       this.panel.webview.onDidReceiveMessage((m: { type: 'open'; file: string; line?: number }) => {
         if (m.type !== 'open') return;
         const options: vscode.TextDocumentShowOptions = { viewColumn: vscode.ViewColumn.One };
@@ -35,8 +54,7 @@ export class ChainPanel implements vscode.Disposable {
     } else {
       this.panel.reveal(undefined, true);
     }
-    this.panel.title = `Overlay chain: ${chain.recipe.pn}`;
-    this.panel.webview.html = this.html(this.panel.webview, dist, chain);
+    this.update(chain);
   }
 
   private html(webview: vscode.Webview, dist: vscode.Uri, chain: OverlayChain): string {

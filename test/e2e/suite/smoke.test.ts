@@ -1,4 +1,5 @@
 import * as assert from 'node:assert/strict';
+import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { MetaLensApi } from '../../../src/extension';
@@ -21,6 +22,9 @@ suite('meta-lens smoke test (bsp-custom)', () => {
     api = await ext.activate();
     assert.equal(ext.isActive, true);
     await api.refresh();
+    // VS Code's file watcher starts asynchronously; give it time before the
+    // tests that rely on file events.
+    await new Promise((r) => setTimeout(r, 2000));
   });
 
   test('registers its commands', async () => {
@@ -97,5 +101,49 @@ suite('meta-lens smoke test (bsp-custom)', () => {
       vscode.Uri.file(busybox.path),
     );
     await until(() => api.isChainOpen(), 'chain panel');
+  });
+
+  test('a new image in deploy/images shows up without a full rescan', async () => {
+    const p = api.getProjects()[0]!;
+    const dir = path.join(p.root, 'build', 'tmp', 'deploy', 'images', 'e2e-machine');
+    const scansBefore = api.scanCount();
+    await fs.mkdir(dir, { recursive: true });
+    try {
+      await fs.writeFile(path.join(dir, 'e2e-image-e2e-machine.rootfs.manifest'), 'busybox a 1\n');
+      await until(
+        () => api.getProjects()[0]!.builtImages.some((i) => i.name === 'e2e-image'),
+        'new built image',
+        20_000,
+      );
+      assert.equal(api.scanCount(), scansBefore, 'images-only refresh, no full rescan');
+    } finally {
+      await fs.rm(dir, { recursive: true, force: true });
+    }
+    await until(
+      () => !api.getProjects()[0]!.builtImages.some((i) => i.name === 'e2e-image'),
+      'image removed',
+      20_000,
+    );
+  });
+
+  test('the overlay chain follows edits of its bbappends', async () => {
+    const p = api.getProjects()[0]!;
+    const busybox = p.recipes.find((r) => r.pn === 'busybox')!;
+    await vscode.commands.executeCommand(
+      'meta-lens.showOverlayChain',
+      vscode.Uri.file(busybox.path),
+    );
+    await until(() => api.currentChain()?.recipe.pn === 'busybox', 'busybox chain');
+    const append = busybox.appends[1]!; // meta-acme
+    const original = await fs.readFile(append, 'utf8');
+    const lines = () => api.currentChain()?.steps[2]?.lines.length ?? -1;
+    assert.equal(lines(), 1);
+    try {
+      await fs.writeFile(append, original + 'DEPENDS += "zlib"\n');
+      await until(() => lines() === 2, 'chain updated after edit', 20_000);
+    } finally {
+      await fs.writeFile(append, original);
+    }
+    await until(() => lines() === 1, 'chain back after restore', 20_000);
   });
 });

@@ -1,9 +1,9 @@
 import * as vscode from 'vscode';
 import type { Diagnostic, Project } from './core/model';
-import { loadProject } from './core/project';
+import { loadBuiltImages, loadProject } from './core/project';
 import type { RecipeFilter } from './core/recipeTree';
 import { buildSidebarModel } from './core/sidebarModel';
-import { buildOverlayChain } from './core/overlayChain';
+import { buildOverlayChain, type OverlayChain } from './core/overlayChain';
 import { ChainPanel } from './views/chainPanel';
 import { SIDEBAR_LEFT_VIEW_ID, SIDEBAR_VIEW_ID, SidebarViewProvider } from './views/sidebarView';
 
@@ -17,6 +17,10 @@ export interface MetaLensApi {
   getRecipeFilter(): RecipeFilter;
   /** Whether the OVERLAY CHAIN panel is open. */
   isChainOpen(): boolean;
+  /** Chain displayed in the OVERLAY CHAIN panel. */
+  currentChain(): OverlayChain | undefined;
+  /** Number of full rescans since activation. */
+  scanCount(): number;
 }
 
 /** Any change to these files triggers a rescan (debounced). */
@@ -26,7 +30,19 @@ const WATCH_GLOBS = [
   '**/*.{bb,bbappend,inc}',
   '**/*.{yml,yaml}', // kas files
 ];
+/**
+ * Built images: only the "latest" manifests, a handful of events per build.
+ * They trigger a cheap images-only refresh, not a full rescan.
+ */
+const DEPLOY_GLOB = '**/deploy/images/*/*.manifest';
+/**
+ * Deleting a folder (rm -rf tmp, a machine directory...) is reported for the
+ * folder only, not for each file inside: watch those deletions too.
+ */
+const DEPLOY_DIR_DELETE_GLOBS = ['**/{tmp,tmp-glibc,tmp-musl,deploy,images}', '**/deploy/images/*'];
 const DEBOUNCE_MS = 300;
+/** Builds write many deploy files at the end: wait for the burst to settle. */
+const DEPLOY_DEBOUNCE_MS = 1500;
 
 /** First VS Code release where extensions can contribute to the Secondary Side Bar. */
 const SECONDARY_SIDEBAR_MIN = [1, 106];
@@ -95,7 +111,39 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     else output.info(msg);
   };
 
+  const publish = () =>
+    sidebar.setModel(buildSidebarModel(projects, (f) => vscode.workspace.asRelativePath(f, false)));
+
+  const refreshChain = async (recipePath: string) => {
+    const project = projects.find((p) => p.recipes.some((r) => r.path === recipePath));
+    const chain = project ? await buildOverlayChain(project, recipePath) : undefined;
+    if (chain) chainPanel.update(chain);
+  };
+
+  /** After a build: re-list deploy/images only (a few readdir + stat). */
+  const refreshImages = async (): Promise<void> => {
+    if (scanning) return; // a full rescan is running and will include the images
+    const gen = generation;
+    const images = await Promise.all(projects.map((p) => loadBuiltImages(p)));
+    if (gen !== generation) return;
+    projects.forEach((p, i) => (p.builtImages = images[i] ?? []));
+    publish();
+    output.info(`Built images refreshed: ${images.flat().length} image(s).`);
+  };
+
+  let scanning = false;
+  let scans = 0;
   const refresh = async (): Promise<void> => {
+    scanning = true;
+    scans++;
+    try {
+      await rescan();
+    } finally {
+      scanning = false;
+    }
+  };
+
+  const rescan = async (): Promise<void> => {
     const gen = ++generation;
     const folders = vscode.workspace.workspaceFolders ?? [];
     const config = vscode.workspace.getConfiguration('metaLens');
@@ -121,7 +169,9 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
       'metaLens.hasProject',
       projects.some((p) => p.layers.length > 0),
     );
-    sidebar.setModel(buildSidebarModel(projects, (f) => vscode.workspace.asRelativePath(f, false)));
+    publish();
+    // Keep the OVERLAY CHAIN panel in sync: only its recipe is re-read.
+    if (chainPanel.isOpen && chainPanel.recipe) void refreshChain(chainPanel.recipe);
 
     const layers = projects.flatMap((p) => p.layers);
     output.info(
@@ -143,7 +193,31 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
       void refresh();
     }, DEBOUNCE_MS);
   };
-  context.subscriptions.push({ dispose: () => timer && clearTimeout(timer) });
+  let deployTimer: NodeJS.Timeout | undefined;
+  const scheduleImages = () => {
+    if (deployTimer) clearTimeout(deployTimer);
+    deployTimer = setTimeout(() => {
+      deployTimer = undefined;
+      void refreshImages();
+    }, DEPLOY_DEBOUNCE_MS);
+  };
+  context.subscriptions.push({
+    dispose: () => {
+      if (timer) clearTimeout(timer);
+      if (deployTimer) clearTimeout(deployTimer);
+    },
+  });
+  const deployWatcher = vscode.workspace.createFileSystemWatcher(DEPLOY_GLOB);
+  deployWatcher.onDidCreate(scheduleImages);
+  deployWatcher.onDidChange(scheduleImages);
+  deployWatcher.onDidDelete(scheduleImages);
+  context.subscriptions.push(deployWatcher);
+  for (const glob of DEPLOY_DIR_DELETE_GLOBS) {
+    // Deletions only (ignore create and change events).
+    const w = vscode.workspace.createFileSystemWatcher(glob, true, true, false);
+    w.onDidDelete(scheduleImages);
+    context.subscriptions.push(w);
+  }
 
   for (const glob of WATCH_GLOBS) {
     const watcher = vscode.workspace.createFileSystemWatcher(glob);
@@ -199,6 +273,8 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     sidebarReady: () => ready,
     getRecipeFilter: () => sidebar.getFilter(),
     isChainOpen: () => chainPanel.isOpen,
+    currentChain: () => chainPanel.current,
+    scanCount: () => scans,
   };
 }
 
