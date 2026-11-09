@@ -108,7 +108,8 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "pretest:e2e": "node esbuild.mjs && tsc -p test/e2e/tsconfig.json",
-    "test:e2e": "node out/e2e/test/e2e/runTest.js"
+    "test:e2e": "node out/e2e/test/e2e/runTest.js",
+    "check": "tsc --noEmit && eslint src test && prettier --check . && vitest run"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
