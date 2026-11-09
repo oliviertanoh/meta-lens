@@ -3,7 +3,7 @@ import type { Diagnostic, Project } from './core/model';
 import { loadProject } from './core/project';
 import type { RecipeFilter } from './core/recipeTree';
 import { buildSidebarModel } from './core/sidebarModel';
-import { SIDEBAR_VIEW_ID, SidebarViewProvider } from './views/sidebarView';
+import { SIDEBAR_LEFT_VIEW_ID, SIDEBAR_VIEW_ID, SidebarViewProvider } from './views/sidebarView';
 
 /** Public API returned by activate(), used by integration tests. */
 export interface MetaLensApi {
@@ -24,6 +24,21 @@ const WATCH_GLOBS = [
 ];
 const DEBOUNCE_MS = 300;
 
+/** First VS Code release where extensions can contribute to the Secondary Side Bar. */
+const SECONDARY_SIDEBAR_MIN = [1, 106];
+
+function supportsSecondarySidebar(version = vscode.version): boolean {
+  const [major = 0, minor = 0] = version.split('.').map(Number);
+  const [wantMajor = 1, wantMinor = 0] = SECONDARY_SIDEBAR_MIN;
+  return major > wantMajor || (major === wantMajor && minor >= wantMinor);
+}
+
+/** Left when asked, or when this VS Code cannot host views on the right. */
+function useLeftSidebar(): boolean {
+  const location = vscode.workspace.getConfiguration('metaLens').get<string>('location', 'right');
+  return location === 'left' || !supportsSecondarySidebar();
+}
+
 export function activate(context: vscode.ExtensionContext): MetaLensApi {
   const output = vscode.window.createOutputChannel('meta-lens', { log: true });
   const sidebar = new SidebarViewProvider(context.extensionUri);
@@ -32,7 +47,11 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     output,
     sidebar,
     vscode.window.registerWebviewViewProvider(SIDEBAR_VIEW_ID, sidebar),
+    vscode.window.registerWebviewViewProvider(SIDEBAR_LEFT_VIEW_ID, sidebar),
   );
+  const applyLocation = () =>
+    vscode.commands.executeCommand('setContext', 'metaLens.useLeftSidebar', useLeftSidebar());
+  void applyLocation();
 
   let projects: Project[] = [];
   let generation = 0;
@@ -68,6 +87,11 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     if (gen !== generation) return; // A newer refresh superseded this one.
 
     projects = loaded.filter((p): p is Project => p !== undefined);
+    void vscode.commands.executeCommand(
+      'setContext',
+      'metaLens.hasProject',
+      projects.some((p) => p.layers.length > 0),
+    );
     sidebar.setModel(buildSidebarModel(projects, (f) => vscode.workspace.asRelativePath(f, false)));
 
     const layers = projects.flatMap((p) => p.layers);
@@ -102,6 +126,11 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
 
   context.subscriptions.push(
     vscode.commands.registerCommand('meta-lens.refresh', () => refresh()),
+    vscode.commands.registerCommand('meta-lens.open', () =>
+      vscode.commands.executeCommand(
+        `${useLeftSidebar() ? SIDEBAR_LEFT_VIEW_ID : SIDEBAR_VIEW_ID}.focus`,
+      ),
+    ),
     vscode.commands.registerCommand('meta-lens.filterRecipes', () => sidebar.focusFilter()),
     vscode.commands.registerCommand('meta-lens.filterAppends', () =>
       sidebar.setFilter({
@@ -116,7 +145,8 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     ),
     vscode.workspace.onDidChangeWorkspaceFolders(scheduleRefresh),
     vscode.workspace.onDidChangeConfiguration((e) => {
-      if (e.affectsConfiguration('metaLens')) scheduleRefresh();
+      if (e.affectsConfiguration('metaLens.location')) void applyLocation();
+      else if (e.affectsConfiguration('metaLens')) scheduleRefresh();
     }),
   );
 

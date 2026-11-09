@@ -1,0 +1,12 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="30 30 206 206">
+<defs>
+<clipPath id="lens"><circle cx="174" cy="176" r="40"/></clipPath>
+<mask id="hole"><rect x="0" y="0" width="256" height="256" fill="#fff"/><circle cx="174" cy="176" r="40" fill="#000"/></mask>
+</defs>
+<g fill="none" stroke="#8b96a3" stroke-width="18" stroke-linejoin="round" stroke-linecap="round" mask="url(#hole)">
+<path d="M128 50 L206 90 L128 130 L50 90 Z"/><path d="M50 124 L128 164 L206 124"/><path d="M50 158 L128 198 L206 158"/></g>
+<g clip-path="url(#lens)" fill="none" stroke="#e8a25a" stroke-width="18" stroke-linejoin="round" stroke-linecap="round">
+<path d="M50 124 L128 164 L206 124"/><path d="M50 158 L128 198 L206 158"/></g>
+<circle cx="174" cy="176" r="40" fill="none" stroke="#4fc1ff" stroke-width="16"/>
+<path d="M204 206 L226 228" stroke="#4fc1ff" stroke-width="20" stroke-linecap="round"/>
+</svg>

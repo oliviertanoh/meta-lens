@@ -3,7 +3,9 @@ import type { RecipeFilter } from '../core/recipeTree';
 import type { SidebarModel } from '../core/sidebarModel';
 import type { FromHost, ToHost } from '../webview/main';
 
-export const SIDEBAR_VIEW_ID = 'metaLens.sidebar';
+/** Same webview, offered in two places; a `when` clause shows only one. */
+export const SIDEBAR_VIEW_ID = 'metaLens.sidebar'; // Secondary Side Bar (right)
+export const SIDEBAR_LEFT_VIEW_ID = 'metaLens.sidebarLeft'; // Activity Bar (left)
 
 function nonce(): string {
   let s = '';

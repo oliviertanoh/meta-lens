@@ -30,9 +30,16 @@
   ],
   "contributes": {
     "viewsContainers": {
-      "activitybar": [
+      "secondarySidebar": [
         {
           "id": "metaLens",
+          "title": "meta-lens",
+          "icon": "media/activitybar.svg"
+        }
+      ],
+      "activitybar": [
+        {
+          "id": "metaLensLeft",
           "title": "meta-lens",
           "icon": "media/activitybar.svg"
         }
@@ -43,11 +50,29 @@
         {
           "type": "webview",
           "id": "metaLens.sidebar",
-          "name": "meta-lens"
+          "name": "meta-lens",
+          "when": "!metaLens.useLeftSidebar"
+        }
+      ],
+      "metaLensLeft": [
+        {
+          "type": "webview",
+          "id": "metaLens.sidebarLeft",
+          "name": "meta-lens",
+          "when": "metaLens.useLeftSidebar"
         }
       ]
     },
     "commands": [
+      {
+        "command": "meta-lens.open",
+        "title": "Open meta-lens",
+        "category": "meta-lens",
+        "icon": {
+          "light": "media/logo-color.svg",
+          "dark": "media/logo-color.svg"
+        }
+      },
       {
         "command": "meta-lens.refresh",
         "title": "Refresh",
@@ -82,13 +107,20 @@
       "view/title": [
         {
           "command": "meta-lens.refresh",
-          "when": "view == metaLens.sidebar",
+          "when": "view == metaLens.sidebar || view == metaLens.sidebarLeft",
           "group": "navigation@1"
         },
         {
           "command": "meta-lens.filterRecipes",
-          "when": "view == metaLens.sidebar",
+          "when": "view == metaLens.sidebar || view == metaLens.sidebarLeft",
           "group": "navigation@2"
+        }
+      ],
+      "editor/title": [
+        {
+          "command": "meta-lens.open",
+          "when": "metaLens.hasProject && config.metaLens.showEditorButton",
+          "group": "navigation@100"
         }
       ]
     },
@@ -110,6 +142,24 @@
           },
           "default": [],
           "markdownDescription": "Layer directory names that belong to your project (e.g. `meta-mycompany`). When empty, meta-lens guesses: well-known community layers and layers in a nested git checkout are upstream, the rest is yours. The RECIPES view shows only recipes created or extended by project layers by default."
+        },
+        "metaLens.location": {
+          "type": "string",
+          "enum": [
+            "right",
+            "left"
+          ],
+          "enumDescriptions": [
+            "Secondary Side Bar, next to chat views (VS Code 1.106 or later).",
+            "Activity Bar on the left."
+          ],
+          "default": "right",
+          "description": "Where the meta-lens panel lives."
+        },
+        "metaLens.showEditorButton": {
+          "type": "boolean",
+          "default": true,
+          "description": "Show the meta-lens logo in the editor title bar when a Yocto project is open."
         }
       }
     }

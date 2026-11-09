@@ -27,6 +27,7 @@ suite('meta-lens smoke test (bsp-custom)', () => {
     const commands = await vscode.commands.getCommands(true);
     for (const c of [
       'meta-lens.refresh',
+      'meta-lens.open',
       'meta-lens.filterRecipes',
       'meta-lens.filterAppends',
       'meta-lens.showAllRecipes',
@@ -68,7 +69,7 @@ suite('meta-lens smoke test (bsp-custom)', () => {
   });
 
   test('sidebar webview starts and talks to the extension', async () => {
-    await vscode.commands.executeCommand('workbench.view.extension.metaLens');
+    await vscode.commands.executeCommand('meta-lens.open');
     await Promise.race([
       api.sidebarReady(),
       new Promise((_, reject) => setTimeout(() => reject(new Error('webview not ready')), 15_000)),
