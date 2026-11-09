@@ -3,6 +3,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { MetaLensApi } from '../../../src/extension';
 import { AppendBadgeProvider, badgeText, recipeBadgeUri } from '../../../src/views/appendBadges';
+import { projectRows } from '../../../src/views/projectView';
 
 suite('meta-lens smoke test (bsp-custom)', () => {
   let api: MetaLensApi;
@@ -63,5 +64,25 @@ suite('meta-lens smoke test (bsp-custom)', () => {
     assert.equal(provider.provideFileDecoration(recipeBadgeUri('/x/a.bb', 0)), undefined);
     assert.equal(provider.provideFileDecoration(vscode.Uri.file('/x/a.bb')), undefined);
     assert.deepEqual([1, 9, 10, 99, 250].map(badgeText), ['+1', '+9', '10', '99', '99']);
+  });
+
+  test('PROJECT rows', () => {
+    const p = api.getProjects()[0];
+    assert.ok(p);
+    const rows = projectRows(p).map((n) => {
+      assert.equal(n.kind, 'row');
+      return n.kind === 'row' ? [n.item.label, n.item.description] : [];
+    });
+    assert.deepEqual(rows, [
+      ['Config', path.join('build', 'conf', 'bblayers.conf')],
+      ['Release', 'scarthgap (5.0 LTS)'],
+      ['MACHINE', 'acme-rpi4'],
+      ['DISTRO', 'acme-distro'],
+      ['Mode', 'Static scan · no bitbake env'],
+      [
+        `BBLAYERS entry "/home/builder/bsp/sources/meta-openembedded/meta-oe" resolved to ${path.join('sources', 'meta-openembedded', 'meta-oe')} by guess.`,
+        '',
+      ],
+    ]);
   });
 });

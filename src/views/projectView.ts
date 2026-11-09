@@ -2,7 +2,7 @@ import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { ConfSetting, Diagnostic, Project } from '../core/model';
 
-type Node = { kind: 'project'; project: Project } | { kind: 'row'; item: vscode.TreeItem };
+export type Node = { kind: 'project'; project: Project } | { kind: 'row'; item: vscode.TreeItem };
 
 function openAt(file: string, line?: number): vscode.Command {
   const args: unknown[] = [vscode.Uri.file(file)];
