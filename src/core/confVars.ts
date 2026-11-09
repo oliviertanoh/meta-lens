@@ -2,14 +2,9 @@
 
 import type { Assignment } from './bbvars';
 import { evaluate, parseAssignments } from './bbvars';
+import type { ConfValue } from './model';
 
-export interface ConfValue {
-  value: string;
-  /** File where the winning assignment is written. */
-  file: string;
-  /** 1-based line of the winning assignment. */
-  line?: number;
-}
+export type { ConfValue };
 
 export interface ConfFile {
   file: string;

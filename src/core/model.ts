@@ -97,6 +97,37 @@ export interface IncludeFile {
   fileName: string;
 }
 
+/** A configuration value and where it is set. */
+export interface ConfValue {
+  value: string;
+  /** File where the winning assignment is written. */
+  file: string;
+  /** 1-based line of the winning assignment. */
+  line?: number;
+}
+
+export interface ConfSetting extends ConfValue {
+  /** `conf/machine/<MACHINE>.conf` or `conf/distro/<DISTRO>.conf` found in a loaded layer. */
+  definition?: string;
+  /** Path of the layer holding `definition`. */
+  definitionLayer?: string;
+}
+
+export interface Release {
+  /** Codenames from LAYERSERIES_COMPAT_core, e.g. ["scarthgap"]. */
+  names: string[];
+  /** Display label, e.g. "scarthgap (5.0 LTS)". */
+  label: string;
+  /** Path of the core layer it was read from. */
+  layer: string;
+}
+
+export interface ProjectConfig {
+  machine?: ConfSetting;
+  distro?: ConfSetting;
+  release?: Release;
+}
+
 export type ConfigSourceKind = 'bblayers' | 'kas' | 'scan';
 
 export interface ConfigSource {
@@ -119,6 +150,8 @@ export interface Project {
   appends: BbAppend[];
   /** `.inc` files found in the layers (indexed only, never parsed at startup). */
   includes: IncludeFile[];
+  /** MACHINE, DISTRO and Yocto release. */
+  config: ProjectConfig;
   /** Project-level diagnostics (not tied to a single layer). */
   diagnostics: Diagnostic[];
 }

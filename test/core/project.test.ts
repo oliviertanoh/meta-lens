@@ -195,4 +195,72 @@ describe('loadProject', () => {
       expect(p.includes.map((i) => i.fileName)).toEqual(['busybox.inc']);
     });
   });
+
+  describe('project config (MACHINE, DISTRO, release)', () => {
+    it('bsp-custom: values from local.conf, definitions found in layers', async () => {
+      const p = await loadProject(fixture('bsp-custom'));
+      const local = fixture('bsp-custom', 'build', 'conf', 'local.conf');
+      expect(p.config).toEqual({
+        machine: {
+          value: 'acme-rpi4',
+          file: local,
+          line: 3,
+          definition: fixture(
+            'bsp-custom',
+            'sources',
+            'meta-acme-bsp',
+            'conf',
+            'machine',
+            'acme-rpi4.conf',
+          ),
+          definitionLayer: fixture('bsp-custom', 'sources', 'meta-acme-bsp'),
+        },
+        distro: {
+          value: 'acme-distro',
+          file: local,
+          line: 2,
+          definition: fixture(
+            'bsp-custom',
+            'sources',
+            'meta-acme',
+            'conf',
+            'distro',
+            'acme-distro.conf',
+          ),
+          definitionLayer: fixture('bsp-custom', 'sources', 'meta-acme'),
+        },
+        release: {
+          names: ['scarthgap'],
+          label: 'scarthgap (5.0 LTS)',
+          layer: fixture('bsp-custom', 'sources', 'poky', 'meta'),
+        },
+      });
+    });
+
+    it('poky-mini: auto.conf overrides local.conf', async () => {
+      const p = await loadProject(fixture('poky-mini'));
+      expect(p.config.machine?.value).toBe('qemuarm64');
+      expect(p.config.machine?.file).toBe(fixture('poky-mini', 'build', 'conf', 'auto.conf'));
+      expect(p.config.distro?.definition).toBe(
+        fixture('poky-mini', 'meta-poky', 'conf', 'distro', 'poky.conf'),
+      );
+    });
+
+    it('kas-project: values from the kas file, missing definitions are warned', async () => {
+      const p = await loadProject(fixture('kas-project'));
+      const kas = fixture('kas-project', 'kas', 'project.yml');
+      expect(p.config.machine).toEqual({ value: 'qemuarm64', file: kas, line: 4 });
+      expect(p.config.release).toBeUndefined();
+      expect(p.diagnostics.filter((d) => d.severity === 'warning').map((d) => d.message)).toEqual([
+        'MACHINE "qemuarm64" is not provided by any loaded layer (no conf/machine/qemuarm64.conf).',
+        'DISTRO "poky" is not provided by any loaded layer (no conf/distro/poky.conf).',
+      ]);
+    });
+
+    it('scan source: no config', async () => {
+      const p = await loadProject(fixture('bsp-custom', 'sources'));
+      expect(p.config.machine).toBeUndefined();
+      expect(p.config.release?.names).toEqual(['scarthgap']);
+    });
+  });
 });

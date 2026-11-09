@@ -4,9 +4,21 @@ import { promises as fs } from 'node:fs';
 import * as path from 'node:path';
 import { parseBblayers, type BblayersEntry } from './bblayers';
 import { matchAppends, type LayerRank } from './appendMatch';
+import { readConfVars, readKasVars, type ConfFile } from './confVars';
 import { discover, type DiscoveryOptions } from './discovery';
 import { parseLayerConf } from './layerConf';
-import type { ConfigSource, Diagnostic, IncludeFile, Layer, Project, RecipeFile } from './model';
+import type {
+  ConfigSource,
+  ConfSetting,
+  ConfValue,
+  Diagnostic,
+  IncludeFile,
+  Layer,
+  Project,
+  ProjectConfig,
+  RecipeFile,
+} from './model';
+import { detectRelease } from './release';
 import {
   BbfilesMatcher,
   effectiveBbfiles,
@@ -199,6 +211,72 @@ function checkLayers(layers: Layer[]): void {
   }
 }
 
+async function readIfExists(file: string): Promise<ConfFile | undefined> {
+  try {
+    return { file, text: await fs.readFile(file, 'utf8') };
+  } catch {
+    return undefined;
+  }
+}
+
+/** Raw MACHINE / DISTRO from local.conf + auto.conf (next to bblayers.conf) or the kas file. */
+async function readMachineDistro(
+  source: ConfigSource,
+): Promise<{ machine?: ConfValue; distro?: ConfValue }> {
+  if (source.kind === 'bblayers' && source.file) {
+    const confDir = path.dirname(source.file);
+    const files = (
+      await Promise.all(['local.conf', 'auto.conf'].map((f) => readIfExists(path.join(confDir, f))))
+    ).filter((f): f is ConfFile => !!f);
+    const v = readConfVars(files, ['MACHINE', 'DISTRO']);
+    return { machine: v.MACHINE, distro: v.DISTRO };
+  }
+  if (source.kind === 'kas' && source.file) {
+    const f = await readIfExists(source.file);
+    if (!f) return {};
+    const v = readKasVars(f.text, f.file, ['machine', 'distro']);
+    return { machine: v.machine, distro: v.distro };
+  }
+  return {};
+}
+
+/** Find `conf/<kind>/<name>.conf` in the loaded layers (first match in BBLAYERS order). */
+async function locate(
+  value: ConfValue | undefined,
+  kind: 'machine' | 'distro',
+  layers: readonly Layer[],
+  diagnostics: Diagnostic[],
+): Promise<ConfSetting | undefined> {
+  if (!value) return undefined;
+  if (value.value.includes('${')) return value;
+  for (const l of layers) {
+    const f = path.join(l.path, 'conf', kind, `${value.value}.conf`);
+    if (await readIfExists(f)) return { ...value, definition: f, definitionLayer: l.path };
+  }
+  if (!(kind === 'distro' && value.value === 'nodistro')) {
+    diagnostics.push({
+      severity: 'warning',
+      message: `${kind.toUpperCase()} "${value.value}" is not provided by any loaded layer (no conf/${kind}/${value.value}.conf).`,
+      file: value.file,
+      line: value.line,
+    });
+  }
+  return value;
+}
+
+async function loadConfig(
+  source: ConfigSource,
+  layers: readonly Layer[],
+  diagnostics: Diagnostic[],
+): Promise<ProjectConfig> {
+  const raw = await readMachineDistro(source);
+  return {
+    machine: await locate(raw.machine, 'machine', layers, diagnostics),
+    distro: await locate(raw.distro, 'distro', layers, diagnostics),
+    release: detectRelease(layers),
+  };
+}
+
 export interface LoadOptions extends DiscoveryOptions {
   /** Force a specific bblayers.conf instead of the shallowest one found. */
   bblayersFile?: string;
@@ -280,6 +358,7 @@ export async function loadProject(root: string, opts: LoadOptions = {}): Promise
   const layers = loaded.map((l) => l.layer);
   checkLayers(layers);
   const index = buildIndex(loaded);
+  const config = await loadConfig(source, layers, diagnostics);
 
   return {
     root,
@@ -288,6 +367,7 @@ export async function loadProject(root: string, opts: LoadOptions = {}): Promise
     kasFiles: found.kasFiles,
     layers,
     ...index,
+    config,
     diagnostics,
   };
 }
