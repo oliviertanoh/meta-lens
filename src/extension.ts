@@ -13,7 +13,13 @@ export interface MetaLensApi {
   refresh(): Promise<void>;
 }
 
-const WATCH_GLOBS = ['**/conf/layer.conf', '**/conf/bblayers.conf', '**/*.{bb,bbappend,inc}'];
+/** Any change to these files triggers a rescan (debounced). */
+const WATCH_GLOBS = [
+  '**/conf/*.conf', // layer.conf, bblayers.conf, local.conf, auto.conf
+  '**/conf/{machine,distro}/*.conf',
+  '**/*.{bb,bbappend,inc}',
+  '**/*.{yml,yaml}', // kas files
+];
 const DEBOUNCE_MS = 300;
 
 export function activate(context: vscode.ExtensionContext): MetaLensApi {
