@@ -73,6 +73,30 @@
         "title": "Refresh",
         "category": "meta-lens",
         "icon": "$(refresh)"
+      },
+      {
+        "command": "meta-lens.filterRecipes",
+        "title": "Filter Recipes…",
+        "category": "meta-lens",
+        "icon": "$(search)"
+      },
+      {
+        "command": "meta-lens.filterAppends",
+        "title": "Show Only Recipes With bbappends",
+        "category": "meta-lens",
+        "icon": "$(filter)"
+      },
+      {
+        "command": "meta-lens.filterAppendsOff",
+        "title": "Show All Recipes",
+        "category": "meta-lens",
+        "icon": "$(filter-filled)"
+      },
+      {
+        "command": "meta-lens.clearRecipeFilter",
+        "title": "Clear Recipe Filters",
+        "category": "meta-lens",
+        "icon": "$(clear-all)"
       }
     ],
     "menus": {
@@ -81,6 +105,37 @@
           "command": "meta-lens.refresh",
           "when": "view == metaLens.layers",
           "group": "navigation"
+        },
+        {
+          "command": "meta-lens.filterRecipes",
+          "when": "view == metaLens.recipes",
+          "group": "navigation@1"
+        },
+        {
+          "command": "meta-lens.filterAppends",
+          "when": "view == metaLens.recipes && !metaLens.hasAppendsFilter",
+          "group": "navigation@2"
+        },
+        {
+          "command": "meta-lens.filterAppendsOff",
+          "when": "view == metaLens.recipes && metaLens.hasAppendsFilter",
+          "group": "navigation@2"
+        },
+        {
+          "command": "meta-lens.clearRecipeFilter",
+          "when": "view == metaLens.recipes && metaLens.recipeFilterActive",
+          "group": "navigation@3"
+        },
+        {
+          "command": "meta-lens.refresh",
+          "when": "view == metaLens.recipes",
+          "group": "navigation@4"
+        }
+      ],
+      "commandPalette": [
+        {
+          "command": "meta-lens.filterAppendsOff",
+          "when": "false"
         }
       ]
     },

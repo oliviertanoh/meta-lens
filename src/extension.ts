@@ -1,6 +1,7 @@
 import * as vscode from 'vscode';
 import type { Diagnostic, Project } from './core/model';
 import { loadProject } from './core/project';
+import { isFilterActive, type RecipeFilter } from './core/recipeTree';
 import { LayersViewProvider } from './views/layersView';
 import { RecipesViewProvider } from './views/recipesView';
 
@@ -102,6 +103,59 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     watcher.onDidDelete(scheduleRefresh);
     context.subscriptions.push(watcher);
   }
+
+  // RECIPES filters
+  const applyRecipeFilter = (filter: RecipeFilter) => {
+    recipesProvider.setFilter(filter);
+    void vscode.commands.executeCommand(
+      'setContext',
+      'metaLens.hasAppendsFilter',
+      !!filter.hasAppends,
+    );
+    void vscode.commands.executeCommand(
+      'setContext',
+      'metaLens.recipeFilterActive',
+      isFilterActive(filter),
+    );
+    const parts = [
+      filter.text?.trim() ? `"${filter.text.trim()}"` : undefined,
+      filter.hasAppends ? 'has bbappends' : undefined,
+    ].filter(Boolean);
+    recipesView.message = parts.length ? `Filter: ${parts.join(' · ')}` : undefined;
+  };
+
+  const editTextFilter = () => {
+    const input = vscode.window.createInputBox();
+    input.title = 'Filter recipes';
+    input.placeholder = 'Filter recipes… (PN or file name)';
+    input.value = recipesProvider.getFilter().text ?? '';
+    let timer: NodeJS.Timeout | undefined;
+    input.onDidChangeValue((value) => {
+      if (timer) clearTimeout(timer);
+      timer = setTimeout(
+        () => applyRecipeFilter({ ...recipesProvider.getFilter(), text: value }),
+        150,
+      );
+    });
+    input.onDidAccept(() => input.hide());
+    input.onDidHide(() => {
+      if (timer) clearTimeout(timer);
+      applyRecipeFilter({ ...recipesProvider.getFilter(), text: input.value });
+      input.dispose();
+    });
+    input.show();
+  };
+
+  context.subscriptions.push(
+    vscode.commands.registerCommand('meta-lens.filterRecipes', editTextFilter),
+    vscode.commands.registerCommand('meta-lens.filterAppends', () =>
+      applyRecipeFilter({ ...recipesProvider.getFilter(), hasAppends: true }),
+    ),
+    vscode.commands.registerCommand('meta-lens.filterAppendsOff', () =>
+      applyRecipeFilter({ ...recipesProvider.getFilter(), hasAppends: false }),
+    ),
+    vscode.commands.registerCommand('meta-lens.clearRecipeFilter', () => applyRecipeFilter({})),
+  );
 
   context.subscriptions.push(
     vscode.commands.registerCommand('meta-lens.refresh', () => refresh()),
