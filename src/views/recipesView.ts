@@ -1,6 +1,7 @@
 import * as path from 'node:path';
 import * as vscode from 'vscode';
 import type { BbAppend, Layer, Recipe } from '../core/model';
+import { recipeBadgeUri } from './appendBadges';
 import {
   buildRecipeTree,
   type RecipeFilter,
@@ -115,6 +116,7 @@ export class RecipesViewProvider implements vscode.TreeDataProvider<Node> {
         item.id = `recipe:${r.path}:${this.filterKey()}`;
         item.description = [r.pv, this.layerName(r.layer)].filter(Boolean).join(' · ');
         item.iconPath = new vscode.ThemeIcon('file-code');
+        item.resourceUri = recipeBadgeUri(r.path, r.appends.length);
         item.command = openCommand(r.path);
         item.contextValue = r.appends.length ? 'recipe.extended' : 'recipe';
         const md = new vscode.MarkdownString();

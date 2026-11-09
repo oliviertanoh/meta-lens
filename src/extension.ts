@@ -2,6 +2,7 @@ import * as vscode from 'vscode';
 import type { Diagnostic, Project } from './core/model';
 import { loadProject } from './core/project';
 import { isFilterActive, type RecipeFilter } from './core/recipeTree';
+import { AppendBadgeProvider } from './views/appendBadges';
 import { LayersViewProvider } from './views/layersView';
 import { RecipesViewProvider } from './views/recipesView';
 
@@ -21,6 +22,9 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     treeDataProvider: layersProvider,
     showCollapseAll: false,
   });
+  context.subscriptions.push(
+    vscode.window.registerFileDecorationProvider(new AppendBadgeProvider()),
+  );
   const recipesProvider = new RecipesViewProvider();
   const recipesView = vscode.window.createTreeView('metaLens.recipes', {
     treeDataProvider: recipesProvider,
