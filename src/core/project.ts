@@ -230,22 +230,22 @@ async function readIfExists(file: string): Promise<ConfFile | undefined> {
 /** Raw MACHINE / DISTRO from local.conf + auto.conf (next to bblayers.conf) or the kas file. */
 async function readMachineDistro(
   source: ConfigSource,
-): Promise<{ machine?: ConfValue; distro?: ConfValue }> {
+): Promise<{ machine?: ConfValue; distro?: ConfValue; files: string[] }> {
   if (source.kind === 'bblayers' && source.file) {
     const confDir = path.dirname(source.file);
     const files = (
       await Promise.all(['local.conf', 'auto.conf'].map((f) => readIfExists(path.join(confDir, f))))
     ).filter((f): f is ConfFile => !!f);
     const v = readConfVars(files, ['MACHINE', 'DISTRO']);
-    return { machine: v.MACHINE, distro: v.DISTRO };
+    return { machine: v.MACHINE, distro: v.DISTRO, files: files.map((f) => f.file) };
   }
   if (source.kind === 'kas' && source.file) {
     const f = await readIfExists(source.file);
-    if (!f) return {};
+    if (!f) return { files: [] };
     const v = readKasVars(f.text, f.file, ['machine', 'distro']);
-    return { machine: v.machine, distro: v.distro };
+    return { machine: v.machine, distro: v.distro, files: [] };
   }
-  return {};
+  return { files: [] };
 }
 
 /** Find `conf/<kind>/<name>.conf` in the loaded layers (first match in BBLAYERS order). */
@@ -279,6 +279,7 @@ async function loadConfig(
 ): Promise<ProjectConfig> {
   const raw = await readMachineDistro(source);
   return {
+    confFiles: raw.files,
     machine: await locate(raw.machine, 'machine', layers, diagnostics),
     distro: await locate(raw.distro, 'distro', layers, diagnostics),
     release: detectRelease(layers),

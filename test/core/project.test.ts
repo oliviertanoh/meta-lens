@@ -210,6 +210,7 @@ describe('loadProject', () => {
       const p = await loadProject(fixture('bsp-custom'));
       const local = fixture('bsp-custom', 'build', 'conf', 'local.conf');
       expect(p.config).toEqual({
+        confFiles: [local],
         machine: {
           value: 'acme-rpi4',
           file: local,
@@ -248,6 +249,10 @@ describe('loadProject', () => {
 
     it('poky-mini: auto.conf overrides local.conf', async () => {
       const p = await loadProject(fixture('poky-mini'));
+      expect(p.config.confFiles).toEqual([
+        fixture('poky-mini', 'build', 'conf', 'local.conf'),
+        fixture('poky-mini', 'build', 'conf', 'auto.conf'),
+      ]);
       expect(p.config.machine?.value).toBe('qemuarm64');
       expect(p.config.machine?.file).toBe(fixture('poky-mini', 'build', 'conf', 'auto.conf'));
       expect(p.config.distro?.definition).toBe(
@@ -260,6 +265,7 @@ describe('loadProject', () => {
       const kas = fixture('kas-project', 'kas', 'project.yml');
       expect(p.config.machine).toEqual({ value: 'qemuarm64', file: kas, line: 4 });
       expect(p.config.release).toBeUndefined();
+      expect(p.config.confFiles).toEqual([]);
       expect(p.diagnostics.filter((d) => d.severity === 'warning').map((d) => d.message)).toEqual([
         'MACHINE "qemuarm64" is not provided by any loaded layer (no conf/machine/qemuarm64.conf).',
         'DISTRO "poky" is not provided by any loaded layer (no conf/distro/poky.conf).',

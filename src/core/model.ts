@@ -141,6 +141,8 @@ export interface Release {
 }
 
 export interface ProjectConfig {
+  /** local.conf / auto.conf read for MACHINE and DISTRO (existing files only). */
+  confFiles: string[];
   machine?: ConfSetting;
   distro?: ConfSetting;
   release?: Release;
