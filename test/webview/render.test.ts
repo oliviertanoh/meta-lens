@@ -69,11 +69,34 @@ describe('renderLayers', () => {
       'meta-oe 3 6',
       'meta-qt6 0 ?',
       'meta-acme 3 10',
+      'Not in BBLAYERS 1',
     ]);
     const acme = layerRow(m.layers[5]!);
     expect(acme).toContain('codicon-warning');
     expect(acme).toContain('<span class="pill">10</span>');
     expect(layerRow(m.layers[0]!)).toContain('tone-purple');
+  });
+});
+
+describe('layer interactions', () => {
+  it('a layer row filters recipes; layer.conf opens from the hover icon', () => {
+    const l = m.layers[0]!;
+    const html = layerRow(l);
+    expect(html).toContain(`data-layer="${esc(l.path)}"`);
+    expect(html).toMatch(/class="row-action codicon codicon-go-to-file"[^>]*data-file=/);
+    expect(html).not.toMatch(/class="row layer[^"]*"[^>]*data-file=/);
+  });
+
+  it('the selected layer is highlighted', () => {
+    const l = m.layers[2]!;
+    const html = renderLayers(m, { ...DEFAULT_STATE, filter: { layer: l.path } });
+    expect(html.match(/row layer clickable selected/g)).toHaveLength(1);
+  });
+
+  it('inactive layers open on demand, greyed', () => {
+    const html = renderLayers(m, { ...DEFAULT_STATE, open: { inactive: true } });
+    expect(text(html).at(-1)).toBe('meta-unused 7');
+    expect(html).toContain('row layer clickable inactive');
   });
 });
 

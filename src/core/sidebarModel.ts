@@ -55,9 +55,19 @@ export interface LayerVM {
   title: string;
 }
 
+export interface InactiveLayerVM {
+  name: string;
+  path: string;
+  open: Link;
+  priority?: number;
+  title: string;
+}
+
 export interface SidebarModel {
   projects: ProjectVM[];
   layers: LayerVM[];
+  /** On disk but not in BBLAYERS. */
+  inactiveLayers: InactiveLayerVM[];
   recipes: Recipe[];
   appends: BbAppend[];
   /** Layer path → display name. */
@@ -179,6 +189,15 @@ export function buildSidebarModel(projects: readonly Project[], rel: Rel): Sideb
   return {
     projects: withLayers.map((p) => projectVM(p, rel)),
     layers: layers.map(layerVM),
+    inactiveLayers: withLayers.flatMap((p) =>
+      p.inactiveLayers.map((l) => ({
+        name: l.name,
+        path: l.path,
+        open: { file: l.layerConf },
+        priority: l.priority,
+        title: `${l.path}\nNot listed in BBLAYERS: BitBake ignores this layer.\nCollection: ${l.collections.join(', ') || 'none'}`,
+      })),
+    ),
     recipes: withLayers.flatMap((p) => p.recipes),
     appends: withLayers.flatMap((p) => p.appends),
     layerNames: Object.fromEntries(layers.map((l) => [l.path, l.name])),

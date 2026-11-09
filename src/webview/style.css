@@ -293,3 +293,23 @@ body {
 .layer-chip .codicon {
   font-size: 12px;
 }
+
+/* Hover action on a row (e.g. open layer.conf) */
+.row-action {
+  visibility: hidden;
+  opacity: 0.8;
+  cursor: pointer;
+}
+.row:hover .row-action,
+.row:focus .row-action {
+  visibility: visible;
+}
+.row-action:hover {
+  opacity: 1;
+}
+
+/* Layers not in BBLAYERS */
+.inactive .name,
+.inactive .pill {
+  opacity: 0.6;
+}

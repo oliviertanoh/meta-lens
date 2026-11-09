@@ -60,7 +60,7 @@ function renderSections(): void {
   sec('sec-layers', 'Layers', model.layers.length ? String(model.layers.length) : '');
   sec('sec-recipes', 'Recipes', recipesCount(tree));
   $('project').innerHTML = renderProject(model);
-  $('layers').innerHTML = renderLayers(model);
+  $('layers').innerHTML = renderLayers(model, state);
   $('chips').innerHTML = renderChips(state.filter, model.layerNames);
   $('recipes').innerHTML = renderRecipeList(model, state, tree);
 }
@@ -68,11 +68,11 @@ function renderSections(): void {
 /** Keep keyboard focus on the same row across re-renders. */
 function rerender(): void {
   const active = document.activeElement as HTMLElement | null;
-  const key = active?.dataset.toggle ?? active?.dataset.file;
+  const key = active?.dataset.toggle ?? active?.dataset.layer ?? active?.dataset.file;
   renderSections();
   if (key && active !== $('filter')) {
     const again = document.querySelector<HTMLElement>(
-      `[data-toggle="${CSS.escape(key)}"], [data-file="${CSS.escape(key)}"]`,
+      `[data-toggle="${CSS.escape(key)}"], [data-layer="${CSS.escape(key)}"], [data-file="${CSS.escape(key)}"]`,
     );
     again?.focus();
   }
@@ -104,6 +104,26 @@ document.addEventListener('click', (e) => {
     } else {
       setFilter({ layer: undefined });
     }
+    return;
+  }
+  // Hover icon (e.g. open layer.conf) wins over the row action.
+  const action = target.closest<HTMLElement>('.row-action[data-file]');
+  if (action?.dataset.file) {
+    vscode.postMessage({ type: 'open', file: action.dataset.file });
+    return;
+  }
+  const layerRowEl = target.closest<HTMLElement>('[data-layer]');
+  if (layerRowEl?.dataset.layer) {
+    const layer = layerRowEl.dataset.layer;
+    // Second click on the selected layer goes back to the previous scope.
+    state = {
+      ...state,
+      open: { ...state.open, 'sec-recipes': true },
+      filter: { ...state.filter, layer: state.filter.layer === layer ? undefined : layer },
+    };
+    save();
+    rerender();
+    document.getElementById('sec-recipes-header')?.scrollIntoView({ block: 'nearest' });
     return;
   }
   const el = target.closest<HTMLElement>('[data-toggle], [data-file]');

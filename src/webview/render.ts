@@ -95,20 +95,48 @@ export function renderProject(m: SidebarModel): string {
 // ---------------------------------------------------------------------------
 // LAYERS
 
-export function layerRow(l: LayerVM): string {
+/** Small icon on the right of a row, visible on hover, that opens a file. */
+const rowAction = (l: Link | undefined, name: string, title: string) =>
+  l
+    ? `<span class="row-action codicon codicon-${name}" role="button" aria-label="${esc(title)}" title="${esc(title)}"${openAttrs(l)}></span>`
+    : '';
+
+/** A click on the row shows the layer's recipes; the hover icon opens layer.conf. */
+export function layerRow(l: LayerVM, selected = false): string {
   const ic = l.severity === 'error' ? icon('error', 'err') : icon('layers', 'tone-purple');
   const warn = l.severity === 'warning' ? icon('warning', 'warn after-name') : '';
   const prio = `<span class="pill">${l.priority ?? '?'}</span>`;
   return (
-    `<div class="row layer clickable" tabindex="-1" role="treeitem"${openAttrs(l.open)}${titleAttr(l.title)}>` +
+    `<div class="row layer clickable${selected ? ' selected' : ''}" tabindex="-1" role="treeitem" aria-selected="${selected}" data-layer="${esc(l.path)}"${titleAttr(`${l.title}\n\nClick to show its recipes.`)}>` +
     `${ic}<span class="name mono">${esc(l.name)}</span>${warn}<span class="grow"></span>` +
+    rowAction(l.open, 'go-to-file', 'Open layer.conf') +
     `<span class="count">${l.recipeCount}</span>${prio}</div>`
   );
 }
 
-export function renderLayers(m: SidebarModel): string {
+export function renderLayers(m: SidebarModel, state: UiState = DEFAULT_STATE): string {
   if (m.layers.length === 0) return '<div class="empty">No layer found.</div>';
-  return m.layers.map(layerRow).join('');
+  const rows = m.layers.map((l) => layerRow(l, state.filter.layer === l.path));
+  if (m.inactiveLayers.length) {
+    const key = 'inactive';
+    const open = isOpen(state, key, false);
+    rows.push(
+      `<div class="row category clickable inactive" tabindex="-1" role="treeitem" data-toggle="${key}" aria-expanded="${open}" title="Layers found in the workspace but not listed in BBLAYERS: BitBake ignores them.">` +
+        `${twisty(open)}<span class="name">Not in BBLAYERS</span><span class="grow"></span>` +
+        `<span class="count">${m.inactiveLayers.length}</span></div>`,
+    );
+    if (open) {
+      rows.push(
+        ...m.inactiveLayers.map(
+          (l) =>
+            `<div class="row layer clickable inactive" tabindex="-1" role="treeitem" style="--depth:1"${openAttrs(l.open)}${titleAttr(l.title)}>` +
+            `${icon('layers', 'muted')}<span class="name mono">${esc(l.name)}</span><span class="grow"></span>` +
+            `<span class="pill">${l.priority ?? '?'}</span></div>`,
+        ),
+      );
+    }
+  }
+  return rows.join('');
 }
 
 // ---------------------------------------------------------------------------
