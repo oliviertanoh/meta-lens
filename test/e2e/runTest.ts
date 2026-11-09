@@ -9,7 +9,7 @@ async function main(): Promise<void> {
       extensionDevelopmentPath: root,
       extensionTestsPath: path.resolve(__dirname, 'suite', 'index'),
       launchArgs: [
-        path.join(root, 'test', 'fixtures', 'poky-mini'),
+        path.join(root, 'test', 'fixtures', 'bsp-custom'),
         '--disable-extensions',
         '--disable-workspace-trust',
       ],
