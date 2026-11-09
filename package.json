@@ -98,10 +98,32 @@
         "title": "Clear Recipe Filters",
         "category": "meta-lens",
         "icon": "$(clear-all)"
+      },
+      {
+        "command": "meta-lens.showAllRecipes",
+        "title": "Show All Recipes (including upstream layers)",
+        "category": "meta-lens",
+        "icon": "$(layers)"
+      },
+      {
+        "command": "meta-lens.showProjectRecipes",
+        "title": "Show Project Recipes Only",
+        "category": "meta-lens",
+        "icon": "$(home)"
       }
     ],
     "menus": {
       "view/title": [
+        {
+          "command": "meta-lens.showAllRecipes",
+          "when": "view == metaLens.recipes && metaLens.projectOnly",
+          "group": "navigation@0"
+        },
+        {
+          "command": "meta-lens.showProjectRecipes",
+          "when": "view == metaLens.recipes && !metaLens.projectOnly",
+          "group": "navigation@0"
+        },
         {
           "command": "meta-lens.refresh",
           "when": "view == metaLens.layers",
@@ -155,6 +177,14 @@
           },
           "default": [],
           "description": "Extra directory names to skip when scanning the workspace (build/, tmp/, sstate-cache/, downloads/ and .git/ are always skipped)."
+        },
+        "metaLens.projectLayers": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "markdownDescription": "Layer directory names that belong to your project (e.g. `meta-mycompany`). When empty, meta-lens guesses: well-known community layers and layers in a nested git checkout are upstream, the rest is yours. The RECIPES view shows only recipes created or extended by project layers by default."
         }
       }
     }

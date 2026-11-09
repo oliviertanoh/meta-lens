@@ -36,10 +36,26 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     treeDataProvider: recipesProvider,
     showCollapseAll: true,
   });
-  recipesProvider.onDidChangeCounts(({ shown, total }) => {
+  recipesProvider.onDidChangeCounts(({ shown, total, noProjectLayer }) => {
     recipesView.description =
       total === 0 ? undefined : shown === total ? `${total}` : `${shown} / ${total}`;
+    const f = recipesProvider.getFilter();
+    const lines: string[] = [];
+    if (total > 0 && f.projectOnly) {
+      lines.push(
+        noProjectLayer
+          ? 'No project layer detected: showing all recipes (see metaLens.projectLayers).'
+          : 'Project recipes: created or extended by your layers.',
+      );
+    }
+    const parts = [
+      f.text?.trim() ? `"${f.text.trim()}"` : undefined,
+      f.hasAppends ? 'has bbappends' : undefined,
+    ].filter(Boolean);
+    if (parts.length) lines.push(`Filter: ${parts.join(' · ')}`);
+    recipesView.message = lines.length ? lines.join(' ') : undefined;
   });
+  void vscode.commands.executeCommand('setContext', 'metaLens.projectOnly', true);
   context.subscriptions.push(output, layersProvider, layersView, recipesProvider, recipesView);
 
   let projects: Project[] = [];
@@ -58,16 +74,16 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
   const refresh = async (): Promise<void> => {
     const gen = ++generation;
     const folders = vscode.workspace.workspaceFolders ?? [];
-    const excludeDirs = vscode.workspace
-      .getConfiguration('metaLens')
-      .get<string[]>('excludeDirs', []);
+    const config = vscode.workspace.getConfiguration('metaLens');
+    const excludeDirs = config.get<string[]>('excludeDirs', []);
+    const projectLayers = config.get<string[]>('projectLayers', []);
     const started = Date.now();
 
     const loaded = await Promise.all(
       folders
         .filter((f) => f.uri.scheme === 'file')
         .map((f) =>
-          loadProject(f.uri.fsPath, { excludeDirs }).catch((err: unknown) => {
+          loadProject(f.uri.fsPath, { excludeDirs, projectLayers }).catch((err: unknown) => {
             output.error(`Scan of ${f.uri.fsPath} failed: ${String(err)}`);
             return undefined;
           }),
@@ -128,11 +144,7 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
       'metaLens.recipeFilterActive',
       isFilterActive(filter),
     );
-    const parts = [
-      filter.text?.trim() ? `"${filter.text.trim()}"` : undefined,
-      filter.hasAppends ? 'has bbappends' : undefined,
-    ].filter(Boolean);
-    recipesView.message = parts.length ? `Filter: ${parts.join(' · ')}` : undefined;
+    void vscode.commands.executeCommand('setContext', 'metaLens.projectOnly', !!filter.projectOnly);
   };
 
   const editTextFilter = () => {
@@ -165,7 +177,15 @@ export function activate(context: vscode.ExtensionContext): MetaLensApi {
     vscode.commands.registerCommand('meta-lens.filterAppendsOff', () =>
       applyRecipeFilter({ ...recipesProvider.getFilter(), hasAppends: false }),
     ),
-    vscode.commands.registerCommand('meta-lens.clearRecipeFilter', () => applyRecipeFilter({})),
+    vscode.commands.registerCommand('meta-lens.clearRecipeFilter', () =>
+      applyRecipeFilter({ projectOnly: recipesProvider.getFilter().projectOnly }),
+    ),
+    vscode.commands.registerCommand('meta-lens.showAllRecipes', () =>
+      applyRecipeFilter({ ...recipesProvider.getFilter(), projectOnly: false }),
+    ),
+    vscode.commands.registerCommand('meta-lens.showProjectRecipes', () =>
+      applyRecipeFilter({ ...recipesProvider.getFilter(), projectOnly: true }),
+    ),
   );
 
   context.subscriptions.push(

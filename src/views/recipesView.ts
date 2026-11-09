@@ -9,6 +9,12 @@ import {
   type RecipeTree,
 } from '../core/recipeTree';
 
+export interface RecipeCounts {
+  shown: number;
+  total: number;
+  noProjectLayer: boolean;
+}
+
 type Node =
   | { kind: 'category'; group: RecipeGroup }
   | { kind: 'recipe'; recipe: Recipe }
@@ -26,12 +32,13 @@ export class RecipesViewProvider implements vscode.TreeDataProvider<Node> {
   private appends: readonly BbAppend[] = [];
   private appendsByPath = new Map<string, BbAppend>();
   private layerNames = new Map<string, string>();
-  private filter: RecipeFilter = {};
+  private filter: RecipeFilter = { projectOnly: true };
+  private projectLayers: ReadonlySet<string> = new Set();
   private readonly emitter = new vscode.EventEmitter<Node | undefined>();
   readonly onDidChangeTreeData = this.emitter.event;
 
-  /** Fired after every rebuild with (shown, total) recipe counts. */
-  private readonly countsEmitter = new vscode.EventEmitter<{ shown: number; total: number }>();
+  /** Fired after every rebuild with the recipe counts. */
+  private readonly countsEmitter = new vscode.EventEmitter<RecipeCounts>();
   readonly onDidChangeCounts = this.countsEmitter.event;
 
   setData(recipes: readonly Recipe[], appends: readonly BbAppend[], layers: readonly Layer[]) {
@@ -39,6 +46,9 @@ export class RecipesViewProvider implements vscode.TreeDataProvider<Node> {
     this.appends = appends;
     this.appendsByPath = new Map(appends.map((a) => [a.path, a]));
     this.layerNames = new Map(layers.map((l) => [l.path, l.name]));
+    this.projectLayers = new Set(
+      layers.filter((l) => l.origin.kind === 'project').map((l) => l.path),
+    );
     this.rebuild();
   }
 
@@ -54,8 +64,12 @@ export class RecipesViewProvider implements vscode.TreeDataProvider<Node> {
   private tree: RecipeTree = buildRecipeTree([], []);
 
   private rebuild(): void {
-    this.tree = buildRecipeTree(this.recipes, this.appends, this.filter);
-    this.countsEmitter.fire({ shown: this.tree.shown, total: this.tree.total });
+    this.tree = buildRecipeTree(this.recipes, this.appends, this.filter, this.projectLayers);
+    this.countsEmitter.fire({
+      shown: this.tree.shown,
+      total: this.tree.total,
+      noProjectLayer: this.tree.noProjectLayer,
+    });
     this.emitter.fire(undefined);
   }
 
@@ -65,7 +79,7 @@ export class RecipesViewProvider implements vscode.TreeDataProvider<Node> {
 
   /** Changes when the filter changes, so VS Code applies our default expansion again. */
   private filterKey(): string {
-    return `${this.filter.hasAppends ? 'A' : ''}|${this.filter.text?.trim() ?? ''}`;
+    return `${this.filter.projectOnly ? 'P' : ''}${this.filter.hasAppends ? 'A' : ''}|${this.filter.text?.trim() ?? ''}`;
   }
 
   getChildren(node?: Node): Node[] {
