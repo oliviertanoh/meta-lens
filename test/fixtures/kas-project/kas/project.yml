@@ -1,0 +1,16 @@
+header:
+  version: 14
+
+machine: qemuarm64
+distro: poky
+target: core-image-minimal
+
+repos:
+  meta-custom:
+
+  poky:
+    url: https://git.yoctoproject.org/poky
+    commit: 0000000000000000000000000000000000000000
+    layers:
+      meta:
+      meta-poky:

@@ -1,0 +1,4 @@
+# Not a kas file.
+services:
+  builder:
+    image: ubuntu:22.04
