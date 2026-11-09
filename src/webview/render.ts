@@ -263,3 +263,79 @@ export function renderRecipeList(
   if (parts.length === 0) parts.push('<div class="empty">No recipe matches.</div>');
   return parts.join('');
 }
+
+// ---------------------------------------------------------------------------
+// BUILT IMAGES
+
+export function formatSize(bytes: number): string {
+  const units = ['B', 'KB', 'MB', 'GB', 'TB'];
+  let v = bytes;
+  let i = 0;
+  while (v >= 1024 && i < units.length - 1) {
+    v /= 1024;
+    i++;
+  }
+  return `${i === 0 ? v : v.toFixed(v < 10 ? 1 : 0)} ${units[i]}`;
+}
+
+export function formatDate(ms: number): string {
+  return new Date(ms).toLocaleDateString('en-US', {
+    month: 'short',
+    day: 'numeric',
+    year: 'numeric',
+  });
+}
+
+export function renderBuiltImages(m: SidebarModel, state: UiState = DEFAULT_STATE): string {
+  if (m.builtImages.length === 0) {
+    return '<div class="empty">No image built yet: tmp/deploy/images is empty or missing.</div>';
+  }
+  const machines = [...new Set(m.builtImages.map((i) => i.machine))];
+  const parts: string[] = [];
+  for (const machine of machines) {
+    const imgs = m.builtImages.filter((i) => i.machine === machine);
+    const current = imgs.some((i) => i.current);
+    const key = `machine:${machine}`;
+    const open = isOpen(state, key, current || machines.length === 1);
+    parts.push(
+      `<div class="row category clickable" tabindex="-1" role="treeitem" data-toggle="${esc(key)}" aria-expanded="${open}" style="--depth:0"${titleAttr(current ? 'MACHINE of the active configuration' : undefined)}>` +
+        `${twisty(open)}${icon('circuit-board', current ? 'tone-blue' : 'muted')}` +
+        `<span class="name mono">${esc(machine)}</span>` +
+        (current ? '<span class="pill pill-outline">MACHINE</span>' : '') +
+        `<span class="grow"></span><span class="count">${imgs.length}</span></div>`,
+    );
+    if (!open) continue;
+    for (const img of imgs) {
+      const ikey = `image:${machine}/${img.name}`;
+      const iopen = isOpen(state, ikey, false);
+      const meta = [
+        img.builtAt ? formatDate(img.builtAt) : undefined,
+        img.builds > 1 ? `${img.builds} builds` : undefined,
+      ]
+        .filter(Boolean)
+        .join(' · ');
+      const title = [
+        img.recipe ? `Recipe: ${img.recipe.file}` : 'No matching image recipe in the loaded layers',
+        img.builds ? `${img.builds} timestamped build(s) still in deploy/images` : '',
+      ]
+        .filter(Boolean)
+        .join('\n');
+      parts.push(
+        `<div class="row image clickable" tabindex="-1" role="treeitem" style="--depth:1" data-toggle="${esc(ikey)}" aria-expanded="${iopen}"${openAttrs(img.recipe)}${titleAttr(title)}>` +
+          `${twisty(iopen)}${icon('file-media', 'tone-yellow')}<span class="name">${esc(img.name)}</span>` +
+          `<span class="meta">${esc(meta)}</span><span class="grow"></span></div>`,
+      );
+      if (!iopen) continue;
+      for (const f of img.files) {
+        const action = f.text ? openAttrs({ file: f.path }) : ` data-reveal="${esc(f.path)}"`;
+        parts.push(
+          `<div class="row clickable" tabindex="-1" role="treeitem" style="--depth:2"${action}${titleAttr(`${f.path}\n${f.text ? 'Click to open' : 'Click to reveal in the file manager'}`)}>` +
+            `<span class="twisty-space"></span>${icon(f.text ? 'file' : 'file-binary', 'muted')}` +
+            `<span class="name mono">${esc(f.ext)}</span><span class="grow"></span>` +
+            `<span class="count">${formatSize(f.size)}</span></div>`,
+        );
+      }
+    }
+  }
+  return parts.join('');
+}

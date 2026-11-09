@@ -5,6 +5,8 @@ import { buildSidebarModel, type SidebarModel } from '../../src/core/sidebarMode
 import {
   DEFAULT_STATE,
   esc,
+  formatSize,
+  renderBuiltImages,
   layerRow,
   recipeTreeOf,
   recipesCount,
@@ -188,10 +190,54 @@ describe('renderRecipeList', () => {
   });
 });
 
+describe('renderBuiltImages', () => {
+  it('groups by machine, the current MACHINE open by default', () => {
+    const rows = text(renderBuiltImages(m));
+    expect(rows[0]).toBe('acme-rpi4 MACHINE 1');
+    expect(rows[1]).toMatch(/^acme-image \w{3} \d+, \d{4} · 2 builds$/);
+    expect(rows[2]).toBe('qemuarm64 1');
+    expect(rows).toHaveLength(3);
+  });
+
+  it('opening an image lists its files: text ones open, binaries are revealed', () => {
+    const html = renderBuiltImages(m, {
+      ...DEFAULT_STATE,
+      open: { 'image:acme-rpi4/acme-image': true },
+    });
+    expect(text(html).slice(2, 5)).toEqual(['.manifest 53 B', '.wic 2.0 KB', '.wic.bmap 8 B']);
+    expect(html).toMatch(/data-file="[^"]*rootfs\.manifest"/);
+    expect(html).toMatch(/data-reveal="[^"]*rootfs\.wic"/);
+  });
+
+  it('the image row opens its recipe', () => {
+    expect(renderBuiltImages(m)).toMatch(/class="row image[^>]*data-file="[^"]*acme-image\.bb"/);
+  });
+
+  it('empty state', () => {
+    expect(text(renderBuiltImages({ ...m, builtImages: [] }))).toEqual([
+      'No image built yet: tmp/deploy/images is empty or missing.',
+    ]);
+  });
+
+  it('formatSize', () => {
+    expect([0, 1023, 2048, 435_000_000, 3 * 1024 ** 3].map(formatSize)).toEqual([
+      '0 B',
+      '1023 B',
+      '2.0 KB',
+      '415 MB',
+      '3.0 GB',
+    ]);
+  });
+});
+
 describe('no em dash in the UI', () => {
   it('rendered HTML has none', () => {
     const html =
-      renderProject(m) + renderLayers(m) + renderRecipeList(m, DEFAULT_STATE) + renderChips({});
+      renderProject(m) +
+      renderLayers(m) +
+      renderRecipeList(m, DEFAULT_STATE) +
+      renderChips({}) +
+      renderBuiltImages(m);
     expect(html).not.toContain('—');
   });
 });

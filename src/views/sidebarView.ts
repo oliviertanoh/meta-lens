@@ -89,6 +89,9 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.D
         void vscode.commands.executeCommand('vscode.open', vscode.Uri.file(msg.file), options);
         break;
       }
+      case 'reveal':
+        void vscode.commands.executeCommand('revealFileInOS', vscode.Uri.file(msg.file));
+        break;
       case 'state':
         this.filter = msg.filter;
         this.filterEmitter.fire(msg.filter);
@@ -125,6 +128,8 @@ export class SidebarViewProvider implements vscode.WebviewViewProvider, vscode.D
   <div id="chips" class="chips" role="toolbar" aria-label="Recipe filters"></div>
   <div id="recipes" role="tree"></div>
 </div>
+<div id="sec-images-header"></div>
+<div id="sec-images-body" class="section-body"><div id="images" role="tree"></div></div>
 <script nonce="${n}" src="${uri('webview.js')}"></script>
 </body>
 </html>`;

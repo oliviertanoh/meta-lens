@@ -313,3 +313,12 @@ body {
 .inactive .pill {
   opacity: 0.6;
 }
+
+.pill-outline {
+  background: transparent;
+  color: var(--vscode-charts-blue);
+  border: 1px solid var(--vscode-charts-blue);
+  border-radius: 3px;
+  font-size: 10px;
+  line-height: 13px;
+}

@@ -63,11 +63,35 @@ export interface InactiveLayerVM {
   title: string;
 }
 
+export interface BuiltFileVM {
+  path: string;
+  ext: string;
+  size: number;
+  mtime: number;
+  /** Small text file that can be opened in the editor (manifest, json, bmap...). */
+  text: boolean;
+}
+
+export interface BuiltImageVM {
+  machine: string;
+  /** True for the MACHINE of the active configuration. */
+  current: boolean;
+  name: string;
+  recipe?: Link;
+  builtAt?: number;
+  builds: number;
+  files: BuiltFileVM[];
+}
+
+const TEXT_EXT = /\.(manifest|json|bmap|env|txt|conf)$/;
+
 export interface SidebarModel {
   projects: ProjectVM[];
   layers: LayerVM[];
   /** On disk but not in BBLAYERS. */
   inactiveLayers: InactiveLayerVM[];
+  /** Images found in tmp/deploy/images. */
+  builtImages: BuiltImageVM[];
   recipes: Recipe[];
   appends: BbAppend[];
   /** Layer path → display name. */
@@ -189,6 +213,23 @@ export function buildSidebarModel(projects: readonly Project[], rel: Rel): Sideb
   return {
     projects: withLayers.map((p) => projectVM(p, rel)),
     layers: layers.map(layerVM),
+    builtImages: withLayers.flatMap((p) =>
+      p.builtImages.map((i) => ({
+        machine: i.machine,
+        current: i.machine === p.config.machine?.value,
+        name: i.name,
+        recipe: i.recipe ? { file: i.recipe } : undefined,
+        builtAt: i.builtAt,
+        builds: i.builds,
+        files: i.files.map((f) => ({
+          path: f.path,
+          ext: f.ext,
+          size: f.size,
+          mtime: f.mtime,
+          text: TEXT_EXT.test(f.name),
+        })),
+      })),
+    ),
     inactiveLayers: withLayers.flatMap((p) =>
       p.inactiveLayers.map((l) => ({
         name: l.name,

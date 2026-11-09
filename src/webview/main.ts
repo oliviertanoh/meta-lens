@@ -7,6 +7,7 @@ import {
   isOpen,
   recipeTreeOf,
   recipesCount,
+  renderBuiltImages,
   renderChips,
   renderLayers,
   renderProject,
@@ -19,6 +20,7 @@ import {
 export type ToHost =
   | { type: 'ready' }
   | { type: 'open'; file: string; line?: number }
+  | { type: 'reveal'; file: string }
   | { type: 'state'; filter: RecipeFilter };
 
 /** Messages received from the extension. */
@@ -59,6 +61,12 @@ function renderSections(): void {
   sec('sec-project', 'Project', '');
   sec('sec-layers', 'Layers', model.layers.length ? String(model.layers.length) : '');
   sec('sec-recipes', 'Recipes', recipesCount(tree));
+  sec(
+    'sec-images',
+    'Built images',
+    model.builtImages.length ? String(model.builtImages.length) : '',
+  );
+  $('images').innerHTML = renderBuiltImages(model, state);
   $('project').innerHTML = renderProject(model);
   $('layers').innerHTML = renderLayers(model, state);
   $('chips').innerHTML = renderChips(state.filter, model.layerNames);
@@ -110,6 +118,12 @@ document.addEventListener('click', (e) => {
   const action = target.closest<HTMLElement>('.row-action[data-file]');
   if (action?.dataset.file) {
     vscode.postMessage({ type: 'open', file: action.dataset.file });
+    return;
+  }
+  const reveal = target.closest<HTMLElement>('[data-reveal]');
+  if (reveal?.dataset.reveal) {
+    reveal.focus();
+    vscode.postMessage({ type: 'reveal', file: reveal.dataset.reveal });
     return;
   }
   const layerRowEl = target.closest<HTMLElement>('[data-layer]');
