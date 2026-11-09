@@ -1,0 +1,127 @@
+{
+  "name": "meta-lens",
+  "displayName": "meta-lens",
+  "description": "Understand any Yocto repo in minutes: layers, recipes, bbappends and overlay chains, from static analysis only.",
+  "version": "0.0.1",
+  "publisher": "oliviertanoh",
+  "license": "MIT",
+  "engines": {
+    "vscode": "^1.90.0",
+    "node": ">=20"
+  },
+  "categories": [
+    "Programming Languages",
+    "Other"
+  ],
+  "keywords": [
+    "yocto",
+    "openembedded",
+    "bitbake",
+    "bbappend",
+    "embedded linux"
+  ],
+  "main": "./dist/extension.js",
+  "activationEvents": [
+    "workspaceContains:**/conf/layer.conf",
+    "workspaceContains:**/conf/bblayers.conf",
+    "workspaceContains:**/kas*.yml",
+    "workspaceContains:**/kas/*.yml"
+  ],
+  "contributes": {
+    "viewsContainers": {
+      "activitybar": [
+        {
+          "id": "metaLens",
+          "title": "meta-lens",
+          "icon": "$(layers)"
+        }
+      ]
+    },
+    "views": {
+      "metaLens": [
+        {
+          "id": "metaLens.project",
+          "name": "Project"
+        },
+        {
+          "id": "metaLens.layers",
+          "name": "Layers"
+        },
+        {
+          "id": "metaLens.recipes",
+          "name": "Recipes"
+        }
+      ]
+    },
+    "viewsWelcome": [
+      {
+        "view": "metaLens.project",
+        "contents": "Project details (MACHINE, DISTRO, release) are coming soon."
+      },
+      {
+        "view": "metaLens.recipes",
+        "contents": "The recipe browser is coming soon."
+      },
+      {
+        "view": "metaLens.layers",
+        "contents": "No Yocto layer found in this workspace.\n[Refresh](command:meta-lens.refresh)"
+      }
+    ],
+    "commands": [
+      {
+        "command": "meta-lens.refresh",
+        "title": "Refresh",
+        "category": "meta-lens",
+        "icon": "$(refresh)"
+      }
+    ],
+    "menus": {
+      "view/title": [
+        {
+          "command": "meta-lens.refresh",
+          "when": "view == metaLens.layers",
+          "group": "navigation"
+        }
+      ]
+    },
+    "configuration": {
+      "title": "meta-lens",
+      "properties": {
+        "metaLens.excludeDirs": {
+          "type": "array",
+          "items": {
+            "type": "string"
+          },
+          "default": [],
+          "description": "Extra directory names to skip when scanning the workspace (build/, tmp/, sstate-cache/, downloads/ and .git/ are always skipped)."
+        }
+      }
+    }
+  },
+  "scripts": {
+    "build": "node esbuild.mjs",
+    "watch": "node esbuild.mjs --watch",
+    "vscode:prepublish": "node esbuild.mjs --production",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint src test",
+    "format": "prettier --write .",
+    "test": "vitest run",
+    "test:watch": "vitest",
+    "pretest:e2e": "node esbuild.mjs && tsc -p test/e2e/tsconfig.json",
+    "test:e2e": "node out/e2e/test/e2e/runTest.js"
+  },
+  "devDependencies": {
+    "@eslint/js": "^10.0.1",
+    "@types/mocha": "^10.0.10",
+    "@types/node": "^20.19.43",
+    "@types/vscode": "~1.90.0",
+    "@vscode/test-electron": "^2.5.2",
+    "esbuild": "^0.28.2",
+    "eslint": "^10.14.0",
+    "mocha": "^12.0.3",
+    "prettier": "^3.9.10",
+    "typescript": "^6.0.3",
+    "typescript-eslint": "^8.72.1",
+    "vitest": "^4.1.12"
+  }
+}
