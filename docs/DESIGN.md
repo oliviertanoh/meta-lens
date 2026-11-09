@@ -1,7 +1,5 @@
 # meta-lens — UI design
 
-Mockup: https://claude.ai/artifact/4pk1v5wm3GEPo2eCeKXKnw
-
 Dark VS Code window with a dedicated **meta-lens** icon (stacked layers) in the Activity Bar.
 The extension must use theme colors and codicons; the mockup colors are only indicative.
 
