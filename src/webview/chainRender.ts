@@ -88,37 +88,36 @@ export function renderChain(c: OverlayChain, rel: Rel): string {
     parts.push('<p class="muted">No bbappend: the recipe is used as is.</p>');
   }
 
-  // Overlay
+  // Overlay: one row per candidate, the one BitBake uses marked with a check.
   if (c.overlay) {
-    const winner = c.overlay.find((o) => o.winner);
     parts.push(
-      `<section class="box info"><h2>${icon('layers')} Overlayed recipe</h2>` +
-        `<p>BitBake uses the one from <b>${esc(winner?.layerName ?? '?')}</b> (highest priority, then version).</p><ul>` +
+      `<section><h2>Overlayed</h2>` +
+        `<p class="note">Same recipe in ${c.overlay.length} layers. BitBake uses the one with the highest layer priority, then the highest version.</p>` +
+        `<ul class="rows">` +
         c.overlay
           .map(
             (o) =>
-              `<li>${o.winner ? icon('check') : icon('circle-slash', 'muted')} ${esc(o.layerName)} ${esc(o.pv ?? '')}: ${link(o.path, rel(o.path))}</li>`,
+              `<li class="${o.winner ? 'used' : 'unused'}">${o.winner ? icon('check', 'ok') : icon('circle-small', 'muted')}` +
+              `<span class="row-main">${link(o.path, `${o.layerName}${o.pv ? ` ${o.pv}` : ''}`)}</span>` +
+              `<span class="row-side">${o.winner ? 'used' : 'ignored'}</span></li>`,
           )
           .join('') +
         `</ul></section>`,
     );
   }
 
-  // Orphans
+  // Orphans: same list style, only the icon is colored.
   if (c.orphans.length) {
-    const byLayer = new Map<string, typeof c.orphans>();
-    for (const o of c.orphans) byLayer.set(o.layerName, [...(byLayer.get(o.layerName) ?? []), o]);
     parts.push(
-      `<section class="box warning">` +
-        [...byLayer]
+      `<section><h2>Orphan bbappends</h2><ul class="rows">` +
+        c.orphans
           .map(
-            ([layer, list]) =>
-              `<p>${icon('warning')} ${esc(layer)} has ${list.length} orphan bbappend${list.length > 1 ? 's' : ''}: ` +
-              list.map((o) => link(o.path, o.fileName)).join(', ') +
-              ' (no matching recipe version).</p>',
+            (o) =>
+              `<li>${icon('warning', 'warn')}<span class="row-main">${link(o.path, o.fileName)}</span>` +
+              `<span class="row-side">${esc(o.layerName)} · no matching recipe version</span></li>`,
           )
           .join('') +
-        `</section>`,
+        `</ul></section>`,
     );
   }
 

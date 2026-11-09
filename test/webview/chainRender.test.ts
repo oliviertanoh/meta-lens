@@ -40,9 +40,10 @@ describe('renderChain', () => {
     expect(rows).toContain('Final values');
     expect(rows.join(' ')).toContain('SRC_URI + acme.cfg, + syslog-acme.patch');
     expect(rows.join(' ')).toContain('defconfig overridden by meta-acme-bsp');
-    expect(rows.at(-1)).toBe(
-      'meta-acme has 1 orphan bbappend: psplash_1.2.bbappend (no matching recipe version).',
-    );
+    expect(rows.slice(-2)).toEqual([
+      'Orphan bbappends',
+      'psplash_1.2.bbappend meta-acme · no matching recipe version',
+    ]);
   });
 
   it('every line links to its file and line', () => {
@@ -53,8 +54,9 @@ describe('renderChain', () => {
 
   it('openssh: overlay box with the winner', () => {
     const rows = text(renderChain(openssh, rel));
-    expect(rows).toContain('Overlayed recipe');
-    expect(rows).toContain('BitBake uses the one from meta-acme (highest priority, then version).');
+    expect(rows).toContain('Overlayed');
+    expect(rows.join(' ')).toContain('meta-acme 9.6p1 used');
+    expect(rows.join(' ')).toContain('meta 9.6p1 ignored');
     expect(rows).toContain('No bbappend: the recipe is used as is.');
   });
 
@@ -62,6 +64,11 @@ describe('renderChain', () => {
     const rows = text(renderChain(htop, rel));
     expect(rows).toContain('meta-acme-bsp prio 10 bbappend');
     expect(rows).not.toContain('Final values');
+  });
+
+  it('no colored boxes: lists with colored icons only', () => {
+    const html = renderChain(busybox, rel) + renderChain(openssh, rel);
+    expect(html).not.toContain('class="box');
   });
 
   it('no em dash', () => {

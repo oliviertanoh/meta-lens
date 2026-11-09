@@ -28,7 +28,8 @@ header {
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
-header .pn {
+header .pn,
+header .muted {
   text-transform: none;
   font-weight: 600;
   font-size: 13px;
@@ -150,32 +151,44 @@ h2 {
   color: var(--vscode-charts-orange);
   overflow-wrap: anywhere;
 }
-.box {
-  border: 1px solid;
-  border-radius: 3px;
-  padding: 10px 12px;
-}
-.box p {
-  margin: 0 0 4px;
-}
-.box ul {
-  margin: 6px 0 0;
-  padding-left: 4px;
-  list-style: none;
-}
-.box.warning {
-  border-color: var(--vscode-charts-yellow);
-  background: color-mix(in srgb, var(--vscode-charts-yellow) 10%, transparent);
-}
-.box.warning .codicon {
-  color: var(--vscode-charts-yellow);
-}
-.box.info {
-  border-color: var(--vscode-charts-blue);
-}
 .codicon {
   font-size: 14px;
   vertical-align: middle;
+}
+.note {
+  margin: 0 0 6px;
+  color: var(--vscode-descriptionForeground);
+}
+.rows {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.rows li {
+  display: flex;
+  align-items: baseline;
+  gap: 6px;
+  padding: 2px 0;
+}
+.rows .row-main {
+  font-family: var(--vscode-editor-font-family);
+  font-size: 0.92em;
+}
+.rows .row-side {
+  color: var(--vscode-descriptionForeground);
+  font-size: 0.9em;
+}
+.rows .unused .row-main a {
+  color: var(--vscode-descriptionForeground);
+}
+.ok {
+  color: var(--vscode-testing-iconPassed, var(--vscode-charts-green));
+}
+.warn {
+  color: var(--vscode-list-warningForeground, var(--vscode-charts-yellow));
+}
+.muted.codicon {
+  color: var(--vscode-descriptionForeground);
 }
 code {
   font-family: var(--vscode-editor-font-family);
